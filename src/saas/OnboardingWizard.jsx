@@ -124,7 +124,7 @@ export default function OnboardingWizard() {
 }
 
 function Step1({ form, onChange, inputClass }) {
-  const f = { name: '', address: '', gst: '', logo: '', cuisine: '', seating: '', ...form };
+  const f = { name: '', address: '', gst: '', logo: '', cuisine: '', seating: '', swiggyStoreId: '', zomatoOutletId: '', ...form };
   const set = (k, v) => onChange({ ...f, [k]: v });
 
   return (
@@ -144,6 +144,11 @@ function Step1({ form, onChange, inputClass }) {
           <option value="Other">Other</option>
         </select>
         <input type="number" placeholder="Seating capacity" value={f.seating} onChange={(e) => set('seating', e.target.value)} className={inputClass} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input type="text" placeholder="Swiggy Store ID (e.g. 123456)" value={f.swiggyStoreId} onChange={(e) => set('swiggyStoreId', e.target.value)} className={inputClass} />
+          <input type="text" placeholder="Zomato Outlet ID (e.g. 98765)" value={f.zomatoOutletId} onChange={(e) => set('zomatoOutletId', e.target.value)} className={inputClass} />
+        </div>
+        <p className="text-xs text-slate-400">Get these from your Swiggy/Zomato restaurant dashboard</p>
         <div className="border border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50">
           <input type="file" accept="image/*" className="hidden" id="logoUpload" onChange={(e) => set('logo', e.target.files[0]?.name || '')} />
           <label htmlFor="logoUpload" className="cursor-pointer text-sm font-bold text-slate-500">

@@ -96,3 +96,117 @@ export async function tenantLogin(slug, role, username, password, stationId = nu
   localStorage.setItem(`tenant_${slug}_session`, JSON.stringify(json.session));
   return json;
 }
+
+// ── Tenant auth helper ──
+function tenantAuthHeader(slug) {
+  const token = localStorage.getItem(`tenant_${slug}_token`);
+  return token ? { ...h, Authorization: `Bearer ${token}` } : h;
+}
+
+// ── Orders ──
+export async function getActiveOrders(restaurantId, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders/${restaurantId}/active`, { headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch orders');
+  return json;
+}
+
+export async function createOrder(orderData, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(orderData) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to create order');
+  return json;
+}
+
+export async function addItemsToOrder(orderId, items, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/add-items`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ items }) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to add items');
+  return json;
+}
+
+export async function sendKOT(orderId, itemIds, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/send-kot`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ itemIds }) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to send KOT');
+  return json;
+}
+
+export async function printBillAPI(orderId, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/print-bill`, { method: 'POST', headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to print bill');
+  return json;
+}
+
+export async function duplicateOrder(orderId, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/duplicate`, { method: 'POST', headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to duplicate order');
+  return json;
+}
+
+export async function settleOrder(orderId, paymentMode, slug) {
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/settle`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ paymentMode }) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to settle order');
+  return json;
+}
+
+// ── Online Orders ──
+export async function getOnlineOrders(restaurantId) {
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${SAAS_API}/api/urbanpiper/orders/${restaurantId}`, { headers: token ? { Authorization: `Bearer ${token}` } : h });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch online orders');
+  return json;
+}
+
+export async function updateOnlineOrderStatus(orderId, status) {
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${SAAS_API}/api/urbanpiper/orders/${orderId}/status`, { method: 'PATCH', headers: token ? { ...h, Authorization: `Bearer ${token}` } : h, body: JSON.stringify({ status }) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to update order');
+  return json;
+}
+
+// ── Reports ──
+export async function getReportSummary(restaurantId, from, to) {
+  const qs = from && to ? `?from=${from}&to=${to}` : '';
+  const res = await fetch(`${SAAS_API}/api/reports/summary${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch summary');
+  return json;
+}
+
+export async function getDailyReport(restaurantId, from, to) {
+  const qs = from && to ? `?from=${from}&to=${to}` : '';
+  const res = await fetch(`${SAAS_API}/api/reports/daily${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch daily report');
+  return json;
+}
+
+export async function getChannelBreakdown(restaurantId, from, to) {
+  const qs = from && to ? `?from=${from}&to=${to}` : '';
+  const res = await fetch(`${SAAS_API}/api/reports/channel-breakdown${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch channel breakdown');
+  return json;
+}
+
+// ── Admin ──
+export async function getAdminTransactions(restaurantId, slug, filters = {}) {
+  const params = new URLSearchParams({ restaurantId, ...filters });
+  const res = await fetch(`${SAAS_API}/api/admin/transactions?${params}`, { headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch transactions');
+  return json;
+}
+
+export async function deleteTransaction(orderId, reason, slug) {
+  const res = await fetch(`${SAAS_API}/api/admin/transactions/${orderId}`, { method: 'DELETE', headers: tenantAuthHeader(slug), body: JSON.stringify({ reason }) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to delete transaction');
+  return json;
+}
