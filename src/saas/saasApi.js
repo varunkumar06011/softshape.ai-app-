@@ -295,3 +295,44 @@ export async function mergeOrders(sourceOrderId, targetOrderId) {
   if (!res.ok) throw new Error(json.error || 'Merge failed');
   return json;
 }
+
+// ── AI Menu ──
+export async function suggestMenuItems(items) {
+  const res = await fetch(`${SAAS_API}/api/ai-menu/suggest`, {
+    method: 'POST',
+    headers: authHeader(),
+    body: JSON.stringify({ items }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'AI suggestion failed');
+  return json;
+}
+
+export async function suggestFromCSV(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${SAAS_API}/api/ai-menu/suggest-from-csv`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'AI CSV suggestion failed');
+  return json;
+}
+
+// ── Marketing AI ──
+export async function analyzeMenuImage(imageFile) {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${SAAS_API}/api/marketing/analyze-image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Analysis failed');
+  return json;
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
-import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, uploadMenuItemImage, getTodaysSpecials } from '../saas/saasApi'
-import { Search, Plus, X, Pencil, Camera, Star, ArrowUpDown, Check, Trash2 } from 'lucide-react'
+import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, uploadMenuItemImage, getTodaysSpecials, suggestMenuItems } from '../saas/saasApi'
+import { Search, Plus, X, Pencil, Camera, Star, ArrowUpDown, Check, Trash2, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TABS = [
@@ -406,6 +406,16 @@ function ItemPanel({ isEdit, item, categories, onClose, onSave, onDelete }) {
               <label className="block text-sm font-medium mb-1">Item Name</label>
               <input value={form.itemName} onChange={e => set('itemName', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-brand" />
+              {!isEdit && form.itemName.length >= 3 && (
+                <AISuggestButton itemName={form.itemName} onSuggest={(s) => {
+                  setForm(f => ({
+                    ...f, category: s.category || f.category, price: String(s.suggestedPrice || f.price),
+                    isVeg: s.isVeg !== undefined ? s.isVeg : f.isVeg,
+                    menuType: s.menuType || f.menuType, station: s.station || f.station,
+                    specialNote: s.description || f.specialNote,
+                  }))
+                }} />
+              )}
             </div>
 
             <div>
@@ -512,5 +522,32 @@ function ItemPanel({ isEdit, item, categories, onClose, onSave, onDelete }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function AISuggestButton({ itemName, onSuggest }) {
+  const [loading, setLoading] = useState(false)
+
+  const handleClick = async () => {
+    setLoading(true)
+    try {
+      const { suggestions } = await suggestMenuItems([itemName])
+      if (suggestions && suggestions[0]) {
+        onSuggest(suggestions[0])
+        toast.success('AI suggested fields — review before saving')
+      }
+    } catch (err) {
+      toast.error(err.message || 'AI suggestion failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button onClick={handleClick} disabled={loading}
+      className="mt-2 flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors">
+      <Sparkles className="w-3.5 h-3.5" />
+      {loading ? 'Thinking...' : 'AI fill from name'}
+    </button>
   )
 }
