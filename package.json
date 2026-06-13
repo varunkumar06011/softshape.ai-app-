@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "serve dist -s -l 10000"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -18,6 +19,7 @@
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.20.0",
     "recharts": "^2.10.3",
+    "serve": "^14.2.0",
     "socket.io-client": "^4.6.0"
   },
   "devDependencies": {
