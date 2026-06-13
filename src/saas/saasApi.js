@@ -12,6 +12,10 @@ export async function registerOwner(data) {
   const res = await fetch(`${SAAS_API}/api/auth/register`, { method: 'POST', headers: h, body: JSON.stringify(data) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Registration failed');
+  if (json.token) {
+    localStorage.setItem('saas_token', json.token);
+    if (json.owner) localStorage.setItem('saas_owner', JSON.stringify(json.owner));
+  }
   return json;
 }
 
