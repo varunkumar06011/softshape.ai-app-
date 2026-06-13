@@ -25,14 +25,14 @@ const MarketingAI = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 flex-1 p-8">
+      <div className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 lg:ml-64">
         <h1 className="text-2xl font-bold mb-6">Marketing AI</h1>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
+        <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 mb-8">
           <h2 className="text-lg font-semibold mb-4">Upload Food Photo</h2>
           <div
             onClick={handleUpload}
-            className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-brand transition-colors"
+            className="border-2 border-dashed border-gray-300 rounded-xl p-8 lg:p-12 text-center cursor-pointer hover:border-brand transition-colors"
           >
             <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600">Click to upload or drag and drop</p>
@@ -58,7 +58,7 @@ const MarketingAI = () => {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-4 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4">
                   <label className="flex items-center gap-2">
                     <input
                       type="radio"
@@ -88,17 +88,17 @@ const MarketingAI = () => {
                     />
                   )}
                 </div>
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <button
                     onClick={() => handlePost('instagram')}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
                   >
                     <Instagram className="w-4 h-4" />
                     Post to Instagram
                   </button>
                   <button
                     onClick={() => handlePost('facebook')}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                   >
                     <Facebook className="w-4 h-4" />
                     Post to Facebook

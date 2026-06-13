@@ -43,8 +43,8 @@ const TableManagement = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 flex-1 p-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 lg:ml-64">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h1 className="text-2xl font-bold">Table Management</h1>
           <button
             onClick={handleAddSection}
@@ -67,13 +67,13 @@ const TableManagement = () => {
                   + Add Table
                 </button>
               </div>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                 {sectionTables.map((table) => (
                   <div
                     key={table.id}
-                    className={`p-6 rounded-2xl text-center ${getStatusColor(table.status)}`}
+                    className={`p-4 lg:p-6 rounded-2xl text-center ${getStatusColor(table.status)}`}
                   >
-                    <p className="font-bold text-xl">{table.label}</p>
+                    <p className="font-bold text-lg lg:text-xl">{table.label}</p>
                     <p className="text-sm opacity-75 mt-1 capitalize">{table.status}</p>
                   </div>
                 ))}

@@ -11,10 +11,10 @@ const AdminDashboard = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 flex-1 p-8">
+      <div className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 lg:ml-64">
         <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
 
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <StatCard icon={DollarSign} label="Today's Revenue" value="₹8,420" trend="+12%" trendUp />
           <StatCard icon={Table} label="Active Tables" value="5/8" />
           <StatCard icon={ShoppingCart} label="Orders Today" value="34" trend="+8%" trendUp />
@@ -36,9 +36,9 @@ const AdminDashboard = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 overflow-x-auto">
           <h2 className="text-lg font-semibold mb-4">Recent Orders</h2>
-          <table className="w-full">
+          <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4">Table</th>

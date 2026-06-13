@@ -35,8 +35,8 @@ const MenuManagement = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 flex-1 p-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 lg:ml-64">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h1 className="text-2xl font-bold">Menu Management</h1>
           <button
             onClick={() => setShowAddPanel(true)}
@@ -60,9 +60,9 @@ const MenuManagement = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
+            <div key={item.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 lg:p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="font-semibold text-lg">{item.name}</h3>
@@ -85,7 +85,7 @@ const MenuManagement = () => {
         </div>
 
         {showAddPanel && (
-          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl p-6 z-50">
+          <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl p-6 z-50 overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Add Menu Item</h2>
               <button onClick={() => setShowAddPanel(false)} className="p-2 hover:bg-gray-100 rounded-lg">

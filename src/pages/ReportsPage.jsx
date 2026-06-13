@@ -19,12 +19,12 @@ const ReportsPage = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64 flex-1 p-8">
+      <div className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 lg:ml-64">
         <h1 className="text-2xl font-bold mb-6">Reports</h1>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-6">
+        <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 mb-6">
           <h2 className="text-lg font-semibold mb-4">Date Range</h2>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Start Date</label>
               <input
@@ -46,14 +46,14 @@ const ReportsPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <StatCard icon={DollarSign} label="Total Revenue" value="₹2,27,400" trend="+15%" trendUp />
           <StatCard icon={ShoppingCart} label="Dine-In Revenue" value="₹1,24,000" />
           <StatCard icon={Users} label="Delivery Revenue" value="₹84,500" />
           <StatCard icon={TrendingUp} label="Total Orders" value="346" trend="+12%" trendUp />
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8">
+        <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 mb-8">
           <h2 className="text-lg font-semibold mb-4">Revenue Trend</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={revenueData}>
@@ -68,9 +68,9 @@ const ReportsPage = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 overflow-x-auto">
           <h2 className="text-lg font-semibold mb-4">Channel Breakdown</h2>
-          <table className="w-full">
+          <table className="w-full min-w-[500px]">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4">Channel</th>

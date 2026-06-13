@@ -61,14 +61,14 @@ const CashierDine = () => {
     <div className="min-h-screen bg-gray-50">
       <TopBar restaurantName="VGrand Restaurant" />
 
-      <div className="flex h-[calc(100vh-73px)]">
-        <div className="w-3/5 p-6 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-6">Tables</h2>
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-73px)]">
+        <div className="w-full lg:w-3/5 p-4 lg:p-6 overflow-y-auto">
+          <h2 className="text-xl font-bold mb-4 lg:mb-6">Tables</h2>
           <div className="space-y-6">
             {Object.entries(groupedTables).map(([section, sectionTables]) => (
               <div key={section}>
                 <h3 className="font-semibold mb-3">{section}</h3>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                   {sectionTables.map((table) => (
                     <TableCard
                       key={table.id}
@@ -83,7 +83,7 @@ const CashierDine = () => {
           </div>
         </div>
 
-        <div className="w-2/5 bg-white border-l border-gray-200 p-6">
+        <div className="w-full lg:w-2/5 bg-white border-t lg:border-t-0 lg:border-l border-gray-200 p-4 lg:p-6">
           {selectedTable ? (
             <>
               <div className="flex items-center justify-between mb-6">
@@ -165,7 +165,7 @@ const CashierDine = () => {
       </div>
 
       {showAddItem && (
-        <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl p-6 z-50 overflow-y-auto">
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl p-6 z-50 overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold">Add Item</h2>
             <button onClick={() => setShowAddItem(false)} className="p-2 hover:bg-gray-100 rounded-lg">

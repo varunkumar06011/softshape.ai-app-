@@ -371,7 +371,7 @@ function Step4({ plan, onChangePlan, onboarding }) {
           <div key={idx} className="border border-slate-200 rounded-2xl p-5 bg-slate-50">
             <p className="text-xs font-bold  text-slate-400 mb-3">Station {idx + 1}</p>
             <input type="text" placeholder="Station name (e.g. Dining Counter 1)" value={s.name} onChange={(e) => updateStation(idx, 'name', e.target.value)} className="w-full h-11 rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-bold outline-none focus:border-[#E53935] transition-all mb-3" />
-            <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
               {CASHIER_TYPES.map((t) => (
                 <button
                   key={t.id}

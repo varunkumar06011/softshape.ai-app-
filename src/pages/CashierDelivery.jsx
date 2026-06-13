@@ -81,9 +81,9 @@ const CashierDelivery = () => {
     <div className="min-h-screen bg-gray-50">
       <TopBar restaurantName="VGrand Restaurant" />
 
-      <div className="flex h-[calc(100vh-73px)]">
-        <div className="w-1/2 p-6 overflow-y-auto border-r border-gray-200">
-          <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-73px)]">
+        <div className="w-full lg:w-1/2 p-4 lg:p-6 overflow-y-auto lg:border-r border-b lg:border-b-0 border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 lg:mb-6">
             <h2 className="text-xl font-bold">Delivery Orders</h2>
             <button
               onClick={() => setShowAddOrder(true)}
@@ -107,8 +107,8 @@ const CashierDelivery = () => {
           </div>
         </div>
 
-        <div className="w-1/2 p-6 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6">
+        <div className="w-full lg:w-1/2 p-4 lg:p-6 overflow-y-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 lg:mb-6">
             <h2 className="text-xl font-bold">Walk-In / Parcel</h2>
             <button
               onClick={() => setShowWalkIn(true)}
@@ -141,7 +141,7 @@ const CashierDelivery = () => {
       </div>
 
       {showWalkIn && (
-        <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl p-6 z-50 overflow-y-auto">
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl p-6 z-50 overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold">New Walk-In Order</h2>
             <button onClick={() => setShowWalkIn(false)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -202,8 +202,8 @@ const CashierDelivery = () => {
       )}
 
       {showAddOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Manual Order Entry</h2>
               <button onClick={() => setShowAddOrder(false)} className="p-2 hover:bg-gray-100 rounded-lg">
