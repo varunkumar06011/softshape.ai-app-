@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const LOGO_SRC = '/logo_softshape.ai-removebg-preview.png'
 
@@ -16,6 +16,8 @@ export default function SplashScreen({ children }) {
   const [phase, setPhase] = useState('intro') // 'intro' | 'splash' | 'transition' | 'done'
   const [typedText, setTypedText] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
+  const isLanding = location.pathname === '/'
 
   const fullText = 'softshape.ai'
 
@@ -49,18 +51,22 @@ export default function SplashScreen({ children }) {
   return (
     <>
       {/* === TRAVELING LOGO ===
-          This single element starts centered & huge, then physically moves
-          to top-left while shrinking. It survives the overlay death. */}
+          Starts centered & huge, then moves to top-left while shrinking.
+          Hidden on landing page (already has full header). */}
       <button
         onClick={() => navigate('/')}
         className={`fixed z-[60] cursor-pointer transition-all duration-[2500ms] ease-[cubic-bezier(0.22,1,0.36,1)]
+          ${isLanding && isDone ? 'opacity-0 pointer-events-none hidden' : ''}
           ${showCenterLogo
             ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'
             : 'top-3 left-3 translate-x-0 translate-y-0'}
         `}
         aria-label="Home"
       >
-        {/* Glow halo that shrinks with the logo */}
+        {/* White pill bg + glow halo */}
+        <div className={`absolute -inset-1 rounded-full bg-white/90 shadow-lg transition-all duration-[2500ms]
+          ${showCenterLogo ? 'opacity-0 scale-150' : 'opacity-100 scale-100'}
+        `} />
         <div className={`absolute inset-0 rounded-full transition-all duration-[2500ms]
           ${showCenterLogo ? 'bg-brand/20 blur-3xl scale-150' : 'bg-transparent blur-0 scale-100'}
         `} />
@@ -70,7 +76,7 @@ export default function SplashScreen({ children }) {
           className={`relative object-contain transition-all duration-[2500ms] ease-[cubic-bezier(0.22,1,0.36,1)]
             ${showCenterLogo
               ? 'w-40 h-40 sm:w-60 sm:h-60 lg:w-80 lg:h-80 drop-shadow-2xl'
-              : 'w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 drop-shadow-md'}
+              : 'w-9 h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 drop-shadow-md'}
             ${isIntro ? 'scale-0' : 'scale-100'}
             ${isSplash ? 'animate-float' : ''}
           `}
