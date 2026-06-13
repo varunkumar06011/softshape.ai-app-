@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand: #E53935;
+    --brand-dark: #C62828;
+    --brand-light: #FFEBEE;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #f8fafc;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Okra', system-ui, sans-serif;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+
+  input, textarea, select {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
