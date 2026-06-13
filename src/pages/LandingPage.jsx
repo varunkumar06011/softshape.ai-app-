@@ -146,7 +146,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="px-4 sm:px-8 py-6 text-center text-slate-400 text-xs border-t border-slate-100">
-        © 2025 Softshape.ai by Vtechnologies
+        © 2026 Softshape.ai by Vtechnologies
       </footer>
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { uploadMenuCSV, getOnboardingData, getOwner } from './saasApi';
-import { Upload, Download, ArrowRight } from 'lucide-react';
+import { Upload, Download, ArrowRight, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function MenuUploadStep() {
@@ -61,11 +61,14 @@ Kingfisher Beer,Beer,120,LIQUOR,false,`;
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF5F5] flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-2xl">
-        <div className="bg-white rounded-[48px] border border-[#FFCDD2] p-8 md:p-10">
-          <h1 className="text-2xl font-black text-[#1A1A1A] mb-1 text-center">Almost done</h1>
-          <p className="text-sm text-[#5C5C5C] text-center mb-8">Upload your menu to activate your cashier panels</p>
+        <button onClick={() => navigate('/onboarding/payment')} className="flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors mb-6">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 md:p-10">
+          <h1 className="text-2xl font-bold text-slate-900 mb-1 text-center">Almost done</h1>
+          <p className="text-sm text-slate-400 text-center mb-8">Upload your menu to activate your cashier panels</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="border-2 border-dashed border-[#FFCDD2] rounded-[32px] p-8 bg-[#FFF5F5] text-center">

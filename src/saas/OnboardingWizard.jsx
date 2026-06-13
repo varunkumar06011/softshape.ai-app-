@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, CASHIER_TYPES } from './plans';
 import { getOnboardingData, saveOnboardingStep, getOwner } from './saasApi';
-import { Check, Plus, Upload, Trash2, Download, Printer } from 'lucide-react';
+import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const TOTAL_STEPS = 6;
@@ -43,8 +43,12 @@ export default function OnboardingWizard() {
       <div className="max-w-3xl mx-auto">
 
         {/* ── LOGO ── */}
-        <div className="flex justify-center mb-5">
+        <div className="flex items-center justify-between mb-5">
+          <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Home
+          </button>
           <img src="/logo softshape.ai.png" alt="Softshape.ai" className="h-10 object-contain" />
+          <div className="w-16" />
         </div>
 
         {/* ── PROGRESS: mobile = thin bar + label, desktop = full stepper ── */}

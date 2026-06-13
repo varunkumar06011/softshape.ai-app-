@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getOnboardingData, saveOnboardingStep } from './saasApi';
 import { PLANS } from './plans';
-import { CheckCircle, ShieldCheck } from 'lucide-react';
+import { CheckCircle, ShieldCheck, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function PlanPayment() {
@@ -45,6 +45,10 @@ export default function PlanPayment() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
+        <button onClick={() => navigate('/onboarding')} className="flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors mb-6">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Complete your order</h1>
           <p className="text-sm text-slate-400">Review and confirm your subscription</p>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { users } from '../data/mockData'
+import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const LoginPage = () => {
@@ -50,6 +51,10 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start sm:justify-center px-4 py-8 sm:py-12">
       <div className="w-full max-w-md">
+        <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors mb-6">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
           <p className="text-sm text-slate-400">Sign in to your restaurant dashboard</p>
