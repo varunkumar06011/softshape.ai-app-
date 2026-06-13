@@ -210,3 +210,88 @@ export async function deleteTransaction(orderId, reason, slug) {
   if (!res.ok) throw new Error(json.error || 'Failed to delete transaction');
   return json;
 }
+
+// ── Menu Management ──
+export async function getMenuItems(restaurantId, type = 'BOTH') {
+  const res = await fetch(`${SAAS_API}/api/menu/${restaurantId}?type=${type}`);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch menu');
+  return json;
+}
+
+export async function getTodaysSpecials(restaurantId) {
+  const res = await fetch(`${SAAS_API}/api/menu/${restaurantId}/specials`);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch specials');
+  return json;
+}
+
+export async function addMenuItem(data) {
+  const res = await fetch(`${SAAS_API}/api/menu/item`, { method: 'POST', headers: authHeader(), body: JSON.stringify(data) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to add item');
+  return json;
+}
+
+export async function updateMenuItem(id, data) {
+  const res = await fetch(`${SAAS_API}/api/menu/item/${id}`, { method: 'PATCH', headers: authHeader(), body: JSON.stringify(data) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to update item');
+  return json;
+}
+
+export async function deleteMenuItem(id) {
+  const res = await fetch(`${SAAS_API}/api/menu/item/${id}`, { method: 'DELETE', headers: authHeader() });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to delete item');
+  return json;
+}
+
+export async function uploadMenuItemImage(file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${SAAS_API}/api/menu/upload-image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Upload failed');
+  return json;
+}
+
+// ── Swap / Merge ──
+export async function swapTable(orderId, newTableId, newTableName, newSection) {
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/swap-table`, {
+    method: 'POST',
+    headers: token ? { ...h, Authorization: `Bearer ${token}` } : h,
+    body: JSON.stringify({ newTableId, newTableName, newSection }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Swap failed');
+  return json;
+}
+
+export async function swapItems(orderId, targetOrderId, itemIds) {
+  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/swap-items`, {
+    method: 'POST',
+    headers: h,
+    body: JSON.stringify({ targetOrderId, itemIds }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Move items failed');
+  return json;
+}
+
+export async function mergeOrders(sourceOrderId, targetOrderId) {
+  const res = await fetch(`${SAAS_API}/api/orders/merge`, {
+    method: 'POST',
+    headers: h,
+    body: JSON.stringify({ sourceOrderId, targetOrderId }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Merge failed');
+  return json;
+}

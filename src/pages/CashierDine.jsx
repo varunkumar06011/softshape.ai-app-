@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import TopBar from '../components/TopBar'
 import BillModal from '../components/BillModal'
 import { tables } from '../data/mockData'
-import { getActiveOrders, createOrder, addItemsToOrder, sendKOT, printBillAPI, duplicateOrder, settleOrder } from '../saas/saasApi'
+import { getActiveOrders, createOrder, addItemsToOrder, sendKOT, printBillAPI, duplicateOrder, settleOrder, swapTable, swapItems, mergeOrders } from '../saas/saasApi'
 import { printKOT, printBill } from '../utils/printTemplates'
-import { Plus, Printer, FileText, X, Search, RotateCcw, CreditCard } from 'lucide-react'
+import { Plus, Printer, FileText, X, Search, RotateCcw, CreditCard, ArrowLeftRight, ArrowRight, Merge } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }) => {
@@ -12,6 +12,9 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
   const [selectedTable, setSelectedTable] = useState(null)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
+  const [showSwapTable, setShowSwapTable] = useState(false)
+  const [showMoveItem, setShowMoveItem] = useState(null)
+  const [showMerge, setShowMerge] = useState(false)
   const [activeOrders, setActiveOrders] = useState([])
   const [menuItems, setMenuItems] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -200,7 +203,7 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
                 <>
                   <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto">
                     {orderItems.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group">
                         <div>
                           <p className="font-medium">{item.name}</p>
                           <p className="text-sm text-gray-500">₹{item.price} x {item.qty}</p>
@@ -208,6 +211,9 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
                         <div className="flex items-center gap-2">
                           <p className="font-semibold">₹{item.price * item.qty}</p>
                           {item.kotSent && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">KOT</span>}
+                          <button onClick={() => setShowMoveItem(item)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity" title="Move item">
+                            <ArrowRight className="w-3.5 h-3.5 text-gray-500" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -240,6 +246,12 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
                       <>
                         <button onClick={handlePrintBill} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
                           <FileText className="w-4 h-4" /> Print Bill
+                        </button>
+                        <button onClick={() => setShowSwapTable(true)} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                          <ArrowLeftRight className="w-4 h-4" /> Swap Table
+                        </button>
+                        <button onClick={() => setShowMerge(true)} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                          <Merge className="w-4 h-4" /> Merge Tables
                         </button>
                       </>
                     )}
@@ -295,6 +307,153 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
       {showBillModal && currentOrder && (
         <BillModal order={currentOrder} onClose={() => setShowBillModal(false)} onConfirmPayment={handleSettle} />
       )}
+
+      {/* Swap Table Modal */}
+      {showSwapTable && currentOrder && (
+        <SwapTableModal
+          tables={tables}
+          occupiedTableIds={Object.keys(tableOrderMap)}
+          currentTable={selectedTable}
+          onClose={() => setShowSwapTable(false)}
+          onSwap={async (targetTable) => {
+            try {
+              await swapTable(currentOrder.id, targetTable.id, targetTable.label, targetTable.section || '')
+              toast.success(`Order moved to ${targetTable.label}`)
+              setShowSwapTable(false)
+              fetchData()
+              setSelectedTable(targetTable)
+            } catch (err) {
+              toast.error(err.message || 'Swap failed')
+            }
+          }}
+        />
+      )}
+
+      {/* Move Item Modal */}
+      {showMoveItem && currentOrder && (
+        <MoveItemModal
+          item={showMoveItem}
+          currentOrder={currentOrder}
+          activeOrders={activeOrders}
+          onClose={() => setShowMoveItem(null)}
+          onMove={async (targetOrderId) => {
+            try {
+              await swapItems(currentOrder.id, targetOrderId, [showMoveItem.id])
+              toast.success('Item moved')
+              setShowMoveItem(null)
+              fetchData()
+            } catch (err) {
+              toast.error(err.message || 'Move failed')
+            }
+          }}
+        />
+      )}
+
+      {/* Merge Modal */}
+      {showMerge && currentOrder && (
+        <MergeModal
+          currentOrder={currentOrder}
+          activeOrders={activeOrders}
+          onClose={() => setShowMerge(false)}
+          onMerge={async (targetOrderId) => {
+            try {
+              await mergeOrders(currentOrder.id, targetOrderId)
+              toast.success('Tables merged')
+              setShowMerge(false)
+              fetchData()
+              setSelectedTable(null)
+            } catch (err) {
+              toast.error(err.message || 'Merge failed')
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function SwapTableModal({ tables, occupiedTableIds, currentTable, onClose, onSwap }) {
+  const freeTables = tables.filter(t => !occupiedTableIds.includes(t.id) && t.id !== currentTable?.id)
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">Move order to another table</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {freeTables.map(t => (
+            <button key={t.id} onClick={() => { if (confirm(`Move ${currentTable?.label} order to ${t.label}?`)) onSwap(t) }}
+              className="p-3 bg-green-50 border border-green-200 rounded-xl text-center hover:bg-green-100 transition-colors">
+              <p className="font-bold text-sm">{t.label}</p>
+              <p className="text-[10px] text-green-700">Free</p>
+            </button>
+          ))}
+          {tables.filter(t => occupiedTableIds.includes(t.id)).map(t => (
+            <div key={t.id} className="p-3 bg-gray-100 border border-gray-200 rounded-xl text-center opacity-50 cursor-not-allowed">
+              <p className="font-bold text-sm text-gray-500">{t.label}</p>
+              <p className="text-[10px] text-gray-400">Occupied</p>
+            </div>
+          ))}
+        </div>
+        {freeTables.length === 0 && <p className="text-center text-gray-500 text-sm">No free tables available</p>}
+      </div>
+    </div>
+  )
+}
+
+function MoveItemModal({ item, currentOrder, activeOrders, onClose, onMove }) {
+  const otherOrders = activeOrders.filter(o => o.id !== currentOrder.id && o.status !== 'SETTLED' && o.status !== 'CANCELLED')
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">Move "{item.name}"</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-gray-500 mb-3">Select a table with a running order:</p>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {otherOrders.length === 0 && <p className="text-sm text-gray-400">No other active orders</p>}
+          {otherOrders.map(o => (
+            <button key={o.id} onClick={() => { if (confirm(`Move "${item.name}" to ${o.tableName}?`)) onMove(o.id) }}
+              className="w-full p-3 bg-gray-50 rounded-xl text-left hover:bg-gray-100 transition-colors flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">{o.tableName}</p>
+                <p className="text-xs text-gray-500">{o.items?.length || 0} items · Rs.{Math.round(o.total || 0)}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-gray-400" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MergeModal({ currentOrder, activeOrders, onClose, onMerge }) {
+  const otherOrders = activeOrders.filter(o => o.id !== currentOrder.id && o.status !== 'SETTLED' && o.status !== 'CANCELLED')
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">Merge Tables</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-gray-500 mb-3">Select table to merge into:</p>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {otherOrders.length === 0 && <p className="text-sm text-gray-400">No other active orders</p>}
+          {otherOrders.map(o => (
+            <button key={o.id} onClick={() => { if (confirm(`Merge ${currentOrder.tableName} into ${o.tableName}? All items will move here.`)) onMerge(o.id) }}
+              className="w-full p-3 bg-gray-50 rounded-xl text-left hover:bg-gray-100 transition-colors flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">{o.tableName}</p>
+                <p className="text-xs text-gray-500">{o.items?.length || 0} items · Rs.{Math.round(o.total || 0)}</p>
+              </div>
+              <Merge className="w-4 h-4 text-gray-400" />
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
