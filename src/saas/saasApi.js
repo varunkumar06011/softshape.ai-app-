@@ -78,6 +78,15 @@ export async function verifyPayment(payload) {
   return json;
 }
 
+export async function activateOwner(planId) {
+  const res = await fetch(`${currentBase}/api/payment/activate`, {
+    method: 'POST', headers: authHeader(), body: JSON.stringify({ planId }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Activation failed');
+  return json;
+}
+
 export async function uploadMenuCSV(restaurantId, file) {
   const formData = new FormData();
   formData.append('file', file);

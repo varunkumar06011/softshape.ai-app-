@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getOnboardingData, saveOnboardingStep } from './saasApi';
+import { getOnboardingData, saveOnboardingStep, activateOwner } from './saasApi';
 import { PLANS } from './plans';
 import { CheckCircle, ShieldCheck, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -15,11 +15,16 @@ export default function PlanPayment() {
 
   const handlePay = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    await saveOnboardingStep('payment', { paid: true, plan: planId, paidAt: new Date().toISOString() });
-    setPaid(true);
-    toast.success('Payment successful!');
-    setLoading(false);
+    try {
+      await activateOwner(planId);
+      await saveOnboardingStep('payment', { paid: true, plan: planId, paidAt: new Date().toISOString() });
+      setPaid(true);
+      toast.success('Payment successful!');
+    } catch (err) {
+      toast.error(err.message || 'Payment failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (paid) {
