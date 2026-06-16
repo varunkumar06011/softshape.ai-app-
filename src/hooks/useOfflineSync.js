@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { flushQueue } from '../lib/syncEngine'
-import { getPendingMutations } from '../lib/localCache'
+import { getPendingMutations, getPendingKOTs } from '../lib/localCache'
 
 export function useOfflineSync(slug) {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
@@ -10,8 +10,8 @@ export function useOfflineSync(slug) {
     const goOnline = async () => {
       setIsOnline(true)
       await flushQueue(slug)
-      const q = await getPendingMutations()
-      setPendingCount(q.length)
+      const [q, kots] = await Promise.all([getPendingMutations(), getPendingKOTs()])
+      setPendingCount(q.length + kots.length)
     }
     const goOffline = () => setIsOnline(false)
 
@@ -23,8 +23,8 @@ export function useOfflineSync(slug) {
     const interval = setInterval(async () => {
       if (navigator.onLine) {
         await flushQueue(slug)
-        const q = await getPendingMutations()
-        setPendingCount(q.length)
+        const [q, kots] = await Promise.all([getPendingMutations(), getPendingKOTs()])
+        setPendingCount(q.length + kots.length)
       }
     }, 30000)
 

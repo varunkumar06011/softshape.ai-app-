@@ -27,6 +27,11 @@ export default function TenantCashierWrapper() {
   const sessionRaw = localStorage.getItem(`tenant_${slug}_cashier_session`);
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
 
+  const allowedSections = (() => {
+    try { return JSON.parse(session.allowedSections || '[]') } catch { return [] }
+  })()
+  const handleOnlineOrders = session.handleOnlineOrders || false
+
   if (session.menuUploaded === false) {
     return (
       <div className="min-h-screen bg-[#FFF5F5] flex items-center justify-center px-4">
@@ -50,6 +55,8 @@ export default function TenantCashierWrapper() {
       restaurantId={session.restaurantId}
       stationId={stationId}
       menuFilter={session.menuFilter || 'FOOD'}
+      allowedSections={allowedSections}
+      handleOnlineOrders={handleOnlineOrders}
       onLogout={() => {
         localStorage.removeItem(sessionKey);
         localStorage.removeItem(`tenant_${slug}_cashier_session`);

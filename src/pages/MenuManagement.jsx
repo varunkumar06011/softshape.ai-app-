@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
-import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, uploadMenuItemImage, getTodaysSpecials, suggestMenuItems } from '../saas/saasApi'
+import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, uploadMenuItemImage, getTodaysSpecials, suggestMenuItems, getTenantSections } from '../saas/saasApi'
 import { Search, Plus, X, Pencil, Camera, Star, ArrowUpDown, Check, Trash2, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -54,6 +54,20 @@ export default function MenuManagement() {
   const [savedFlash, setSavedFlash] = useState(null)
 
   const fileInputRef = useRef(null)
+
+  const [sections, setSections] = useState([])
+
+  useEffect(() => {
+    if (!restaurantId) return
+    getTenantSections(restaurantId).then(data => {
+      const sectionNames = (data?.sections || []).map(s => s.name)
+      setSections(sectionNames)
+      localStorage.setItem('softshape_sections', JSON.stringify(sectionNames))
+    }).catch(() => {
+      const cached = localStorage.getItem('softshape_sections')
+      if (cached) { try { setSections(JSON.parse(cached)) } catch {} }
+    })
+  }, [restaurantId])
 
   const fetchItems = async () => {
     if (!restaurantId) return
@@ -263,6 +277,14 @@ export default function MenuManagement() {
                       </button>
                     )}
                     {savedFlash === item.id && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> saved</span>}
+                    {(() => {
+                      try {
+                        const po = item.priceOverrides ? JSON.parse(item.priceOverrides) : {}
+                        return Object.keys(po).length > 0
+                      } catch { return false }
+                    })() && (
+                      <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium" title="Different prices per section">Prices vary</span>
+                    )}
                   </div>
 
                   {/* Toggle + Actions */}
@@ -304,6 +326,7 @@ export default function MenuManagement() {
           isEdit={showEditPanel}
           item={editingItem}
           categories={allCategories}
+          sections={sections}
           onClose={() => { setShowAddPanel(false); setShowEditPanel(false); setEditingItem(null) }}
           onSave={async (data) => {
             try {
@@ -360,11 +383,13 @@ export default function MenuManagement() {
   )
 }
 
-function ItemPanel({ isEdit, item, categories, onClose, onSave, onDelete }) {
+function ItemPanel({ isEdit, item, categories, sections, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({
     itemName: '', category: '', price: '', isVeg: true, menuType: 'FOOD', station: 'KITCHEN',
     variants: [], imageUrl: '', isSpecial: false, specialNote: '',
+    priceOverrides: {},
   })
+  const [showOverrides, setShowOverrides] = useState(false)
   const [newVariant, setNewVariant] = useState({ name: '', price: '' })
 
   useEffect(() => {
@@ -374,7 +399,9 @@ function ItemPanel({ isEdit, item, categories, onClose, onSave, onDelete }) {
         isVeg: item.isVeg !== false, menuType: item.menuType || 'FOOD', station: item.station || 'KITCHEN',
         variants: item.variants || [], imageUrl: item.imageUrl || '', isSpecial: item.isSpecial || false,
         specialNote: item.specialNote || '',
+        priceOverrides: (() => { try { return JSON.parse(item.priceOverrides || '{}') } catch { return {} } })(),
       })
+      setShowOverrides(!!item.priceOverrides && item.priceOverrides !== '{}')
     }
   }, [isEdit, item])
 
@@ -431,6 +458,51 @@ function ItemPanel({ isEdit, item, categories, onClose, onSave, onDelete }) {
               <label className="block text-sm font-medium mb-1">Price (Rs)</label>
               <input type="number" value={form.price} onChange={e => set('price', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-brand" />
+            </div>
+
+            {/* Section Price Overrides */}
+            <div>
+              <button type="button" onClick={() => setShowOverrides(v => !v)}
+                className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">
+                <span className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${showOverrides ? 'bg-brand border-brand' : 'border-gray-300'}`}>
+                  {showOverrides && <Check className="w-3 h-3 text-white" />}
+                </span>
+                Section Price Overrides (optional)
+              </button>
+              {showOverrides && (
+                <div className="mt-3 space-y-2">
+                  {sections.length === 0 && (
+                    <p className="text-xs text-gray-400">No sections configured yet. Save base price for now.</p>
+                  )}
+                  {sections.map(sec => (
+                    <div key={sec} className="flex items-center gap-3">
+                      <span className="flex-1 text-sm text-gray-700">{sec}</span>
+                      <input type="number" placeholder={form.price || 'Base'}
+                        value={form.priceOverrides[sec] || ''}
+                        onChange={e => {
+                          const val = e.target.value
+                          setForm(f => ({
+                            ...f,
+                            priceOverrides: { ...f.priceOverrides, [sec]: val ? Number(val) : undefined },
+                          }))
+                        }}
+                        className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                    </div>
+                  ))}
+                  {/* Allow custom section entry if none exist */}
+                  {sections.length === 0 && (
+                    <div className="flex items-center gap-2">
+                      <input type="text" placeholder="Section name"
+                        onChange={e => {
+                          const sec = e.target.value
+                          if (!sec) return
+                          // handled via price input below
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -508,7 +580,17 @@ function ItemPanel({ isEdit, item, categories, onClose, onSave, onDelete }) {
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-brand text-sm" />
             </div>
 
-            <button onClick={() => onSave(form)} disabled={!canSave}
+            <button onClick={() => {
+              const data = { ...form }
+              if (Object.keys(data.priceOverrides || {}).length > 0) {
+                const cleaned = {}
+                for (const [k, v] of Object.entries(data.priceOverrides)) {
+                  if (v !== undefined && v !== null && v !== '') cleaned[k] = Number(v)
+                }
+                data.priceOverrides = Object.keys(cleaned).length > 0 ? cleaned : undefined
+              }
+              onSave(data)
+            }} disabled={!canSave}
               className={`w-full py-3 rounded-xl font-semibold transition-colors ${canSave ? 'bg-brand text-white hover:bg-brand-dark' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
               {isEdit ? 'Save Changes' : 'Add Item'}
             </button>

@@ -1,11 +1,32 @@
 import { useState, useEffect } from 'react'
-import { Printer, Circle } from 'lucide-react'
-import { printKOT, printBill } from '../utils/printTemplates'
+import { Printer, Circle, Loader2 } from 'lucide-react'
+import { printKOTViAgent, printBillViaAgent } from '../lib/printerConfig'
+import PrinterSetup from '../components/PrinterSetup'
+import toast from 'react-hot-toast'
+
+const mockKOTData = {
+  kotNumber: 'TEST-001',
+  table: 'T-1',
+  section: 'Main Hall',
+  captain: 'Test',
+  items: [{ name: 'Test Item', qty: 2 }],
+}
+
+const mockBillData = {
+  billNumber: 'TEST-001',
+  table: 'T-1',
+  restaurantName: 'My Restaurant',
+  items: [{ name: 'Test Item', qty: 2, price: 150 }],
+  subtotal: 300, cgst: 7.5, sgst: 7.5, total: 315,
+  paymentMode: 'CASH',
+}
 
 const PrintStation = () => {
+  const [activeTab, setActiveTab] = useState('queue')
   const [kitchenKOTs, setKitchenKOTs] = useState([])
   const [barKOTs, setBarKOTs] = useState([])
   const [bills, setBills] = useState([])
+  const [loadingKey, setLoadingKey] = useState(null)
 
   useEffect(() => {
     setKitchenKOTs([
@@ -19,21 +40,24 @@ const PrintStation = () => {
     ])
   }, [])
 
-  const testPrintKOT = () => {
-    printKOT({
-      kotNumber: `TEST-${Date.now()}`, table: 'T-1', section: 'Main Hall',
-      captain: 'Test Captain', items: [{ name: 'Test Item', qty: 1 }],
-      createdAt: new Date(), restaurantName: 'Test Restaurant',
-    })
-  }
-
-  const testPrintBill = () => {
-    printBill({
-      billNumber: `TEST-${Date.now()}`, table: 'T-1', section: 'Main Hall',
-      items: [{ name: 'Test Item', qty: 1, price: 100 }],
-      subtotal: 100, cgst: 2.5, sgst: 2.5, total: 105,
-      restaurantName: 'Test Restaurant', createdAt: new Date(),
-    })
+  const handlePrint = async (key) => {
+    setLoadingKey(key)
+    try {
+      if (key === 'kitchen') {
+        await printKOTViAgent('kitchen', mockKOTData)
+        toast.success('Kitchen KOT printed')
+      } else if (key === 'bar') {
+        await printKOTViAgent('bar', mockKOTData)
+        toast.success('Bar KOT printed')
+      } else if (key === 'bill') {
+        await printBillViaAgent(mockBillData)
+        toast.success('Bill printed')
+      }
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setLoadingKey(null)
+    }
   }
 
   return (
@@ -44,92 +68,129 @@ const PrintStation = () => {
           <p className="text-gray-400">Restaurant</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
-          <div className="bg-gray-800 rounded-2xl p-4 lg:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Printer className="w-5 h-5 text-green-400" />
-              <h2 className="text-xl font-bold">Kitchen KOT</h2>
-              <Circle className="w-3 h-3 text-green-400 fill-green-400 ml-auto" />
-            </div>
-            <button onClick={testPrintKOT} className="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-semibold mb-4 hover:bg-green-700 transition-colors">
-              Test Print KOT
-            </button>
-            <div className="space-y-3">
-              {kitchenKOTs.map((kot) => (
-                <div key={kot.id} className="bg-gray-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold">Table {kot.table}</span>
-                    <span className="text-sm text-gray-400">{kot.time}</span>
-                  </div>
-                  <div className="text-sm space-y-1 mb-2">
-                    {kot.items.map((item, idx) => (
-                      <div key={idx}>{item.name} x {item.qty}</div>
-                    ))}
-                  </div>
-                  <span className="px-2 py-1 bg-green-600 text-white rounded-full text-xs">{kot.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-2xl p-4 lg:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Printer className="w-5 h-5 text-green-400" />
-              <h2 className="text-xl font-bold">Bar KOT</h2>
-              <Circle className="w-3 h-3 text-green-400 fill-green-400 ml-auto" />
-            </div>
-            <button onClick={testPrintKOT} className="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-semibold mb-4 hover:bg-green-700 transition-colors">
-              Test Print Bar KOT
-            </button>
-            <div className="space-y-3">
-              {barKOTs.map((kot) => (
-                <div key={kot.id} className="bg-gray-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold">Table {kot.table}</span>
-                    <span className="text-sm text-gray-400">{kot.time}</span>
-                  </div>
-                  <div className="text-sm space-y-1 mb-2">
-                    {kot.items.map((item, idx) => (
-                      <div key={idx}>{item.name} x {item.qty}</div>
-                    ))}
-                  </div>
-                  <span className="px-2 py-1 bg-green-600 text-white rounded-full text-xs">{kot.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-2xl p-4 lg:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Printer className="w-5 h-5 text-green-400" />
-              <h2 className="text-xl font-bold">Bill Printer</h2>
-              <Circle className="w-3 h-3 text-green-400 fill-green-400 ml-auto" />
-            </div>
-            <button onClick={testPrintBill} className="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-semibold mb-4 hover:bg-green-700 transition-colors">
-              Test Print Bill
-            </button>
-            <div className="space-y-3">
-              {bills.map((bill) => (
-                <div key={bill.id} className="bg-gray-700 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold">Table {bill.table}</span>
-                    <span className="text-sm text-gray-400">{bill.time}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Total</span>
-                    <span className="font-bold text-lg">₹{bill.total}</span>
-                  </div>
-                  <span className="px-2 py-1 bg-green-600 text-white rounded-full text-xs mt-2 inline-block">{bill.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex justify-center gap-2 mb-8">
+          <button
+            onClick={() => setActiveTab('queue')}
+            className={`px-6 py-2 rounded-xl font-semibold transition-colors ${activeTab === 'queue' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+          >
+            Print Queue
+          </button>
+          <button
+            onClick={() => setActiveTab('setup')}
+            className={`px-6 py-2 rounded-xl font-semibold transition-colors ${activeTab === 'setup' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+          >
+            Printer Setup
+          </button>
         </div>
 
-        <div className="text-center text-gray-500 text-sm">
-          <p>Printers connected and ready</p>
-          <p className="mt-1">Auto-refreshing every 20 seconds</p>
-        </div>
+        {activeTab === 'queue' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
+              <div className="bg-gray-800 rounded-2xl p-4 lg:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Printer className="w-5 h-5 text-green-400" />
+                  <h2 className="text-xl font-bold">Kitchen KOT</h2>
+                  <Circle className="w-3 h-3 text-green-400 fill-green-400 ml-auto" />
+                </div>
+                <button
+                  onClick={() => handlePrint('kitchen')}
+                  disabled={loadingKey === 'kitchen'}
+                  className="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-semibold mb-4 hover:bg-green-700 disabled:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  {loadingKey === 'kitchen' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  Test Kitchen KOT
+                </button>
+                <div className="space-y-3">
+                  {kitchenKOTs.map((kot) => (
+                    <div key={kot.id} className="bg-gray-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">Table {kot.table}</span>
+                        <span className="text-sm text-gray-400">{kot.time}</span>
+                      </div>
+                      <div className="text-sm space-y-1 mb-2">
+                        {kot.items.map((item, idx) => (
+                          <div key={idx}>{item.name} x {item.qty}</div>
+                        ))}
+                      </div>
+                      <span className="px-2 py-1 bg-green-600 text-white rounded-full text-xs">{kot.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-800 rounded-2xl p-4 lg:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Printer className="w-5 h-5 text-green-400" />
+                  <h2 className="text-xl font-bold">Bar KOT</h2>
+                  <Circle className="w-3 h-3 text-green-400 fill-green-400 ml-auto" />
+                </div>
+                <button
+                  onClick={() => handlePrint('bar')}
+                  disabled={loadingKey === 'bar'}
+                  className="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-semibold mb-4 hover:bg-green-700 disabled:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  {loadingKey === 'bar' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  Test Bar KOT
+                </button>
+                <div className="space-y-3">
+                  {barKOTs.map((kot) => (
+                    <div key={kot.id} className="bg-gray-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">Table {kot.table}</span>
+                        <span className="text-sm text-gray-400">{kot.time}</span>
+                      </div>
+                      <div className="text-sm space-y-1 mb-2">
+                        {kot.items.map((item, idx) => (
+                          <div key={idx}>{item.name} x {item.qty}</div>
+                        ))}
+                      </div>
+                      <span className="px-2 py-1 bg-green-600 text-white rounded-full text-xs">{kot.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-gray-800 rounded-2xl p-4 lg:p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Printer className="w-5 h-5 text-green-400" />
+                  <h2 className="text-xl font-bold">Bill Printer</h2>
+                  <Circle className="w-3 h-3 text-green-400 fill-green-400 ml-auto" />
+                </div>
+                <button
+                  onClick={() => handlePrint('bill')}
+                  disabled={loadingKey === 'bill'}
+                  className="w-full py-2 bg-green-600 text-white rounded-xl text-sm font-semibold mb-4 hover:bg-green-700 disabled:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  {loadingKey === 'bill' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                  Test Bill
+                </button>
+                <div className="space-y-3">
+                  {bills.map((bill) => (
+                    <div key={bill.id} className="bg-gray-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">Table {bill.table}</span>
+                        <span className="text-sm text-gray-400">{bill.time}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Total</span>
+                        <span className="font-bold text-lg">₹{bill.total}</span>
+                      </div>
+                      <span className="px-2 py-1 bg-green-600 text-white rounded-full text-xs mt-2 inline-block">{bill.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center text-gray-500 text-sm">
+              <p>Printers connected and ready</p>
+              <p className="mt-1">Auto-refreshing every 20 seconds</p>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'setup' && <PrinterSetup />}
       </div>
     </div>
   )

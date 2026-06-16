@@ -1,5 +1,5 @@
 const DB_NAME = 'softshape_pos'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -12,6 +12,8 @@ function openDB() {
       if (!db.objectStoreNames.contains('orders')) db.createObjectStore('orders', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('sync_queue')) db.createObjectStore('sync_queue', { keyPath: 'id' })
       if (!db.objectStoreNames.contains('config')) db.createObjectStore('config', { keyPath: 'key' })
+      if (!db.objectStoreNames.contains('kot_queue')) db.createObjectStore('kot_queue', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('tables')) db.createObjectStore('tables', { keyPath: 'id' })
     }
   })
 }
@@ -86,4 +88,40 @@ export async function markMutationSynced(id) {
 
 export function isOnline() {
   return navigator.onLine
+}
+
+export async function cacheTablesForRestaurant(restaurantId, tables) {
+  const store = await withStore('tables', 'readwrite')
+  await requestToPromise(store.put({ id: `tables_${restaurantId}`, tables }))
+}
+
+export async function getTablesFromCache(restaurantId) {
+  const store = await withStore('tables', 'readonly')
+  const row = await requestToPromise(store.get(`tables_${restaurantId}`))
+  return row?.tables || []
+}
+
+export async function saveOrderLocally(order) {
+  const store = await withStore('orders', 'readwrite')
+  await requestToPromise(store.put(order))
+}
+
+export async function removeOrderLocally(orderId) {
+  const store = await withStore('orders', 'readwrite')
+  await requestToPromise(store.delete(orderId))
+}
+
+export async function queueKOT(kotEntry) {
+  const store = await withStore('kot_queue', 'readwrite')
+  await requestToPromise(store.put(kotEntry))
+}
+
+export async function getPendingKOTs() {
+  const store = await withStore('kot_queue', 'readonly')
+  return requestToPromise(store.getAll())
+}
+
+export async function markKOTSynced(id) {
+  const store = await withStore('kot_queue', 'readwrite')
+  await requestToPromise(store.delete(id))
 }

@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
-import { getTenantSections, createOrder, getActiveOrders, swapTable, mergeOrders } from '../saas/saasApi'
+import { getTenantSections, getActiveOrders, swapTable, mergeOrders } from '../saas/saasApi'
 import { smartPrintKOT } from '../utils/printTemplates'
 import { useSocket } from '../hooks/useSocket'
 import { useOfflineSync } from '../hooks/useOfflineSync'
-import { initDB } from '../lib/localCache'
+import { initDB, cacheOrders, getOrdersFromCache, cacheMenu, getMenuFromCache, cacheTablesForRestaurant, getTablesFromCache } from '../lib/localCache'
+import {
+  offlineCreateOrder,
+  offlineAddItems,
+  offlineSendKOT,
+} from '../lib/offlineActions'
+import { printKOTViAgent } from '../lib/printerConfig'
 import { ArrowLeft, Search, Plus, Minus, Send, FileText, ArrowLeftRight, Merge, MoreHorizontal } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -49,12 +55,19 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
     const fetchTables = async () => {
       setTablesLoading(true)
       try {
-        const data = await getTenantSections(restaurantId)
-        setTables(data || [])
+        if (navigator.onLine) {
+          const data = await getTenantSections(restaurantId)
+          const tables = data || []
+          setTables(tables)
+          await cacheTablesForRestaurant(restaurantId, tables)
+        } else {
+          const cached = await getTablesFromCache(restaurantId)
+          setTables(cached)
+          if (cached.length === 0) toast.error('No cached tables — go online first')
+        }
       } catch (err) {
-        console.error('Failed to load tables:', err)
-        setTables([])
-        toast.error('No tables configured')
+        const cached = await getTablesFromCache(restaurantId)
+        setTables(cached)
       } finally {
         setTablesLoading(false)
       }
@@ -72,16 +85,61 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
 
   useEffect(() => {
     if (!restaurantId || !slug) return
-    Promise.all([
-      getActiveOrders(restaurantId, slug),
-      fetch(`http://localhost:4000/api/menu/${restaurantId}?type=${menuFilter}`).then(r => r.json()),
-    ]).then(([orders, menu]) => {
-      setActiveOrders(orders || [])
+    const fetchData = async () => {
+      try {
+        if (navigator.onLine) {
+          const [orders, menu] = await Promise.all([
+            getActiveOrders(restaurantId, slug),
+            fetch(`${import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}/api/menu/${restaurantId}?type=${menuFilter}`).then(r => r.json()),
+          ])
+          const orderList = orders || []
+          const allItems = Object.values(menu.categories || {}).flat()
+          setActiveOrders(orderList)
+          setMenuItems(allItems)
+          await cacheOrders(restaurantId, orderList)
+          await cacheMenu(restaurantId, allItems)
+        } else {
+          const [orders, menu] = await Promise.all([
+            getOrdersFromCache(restaurantId),
+            getMenuFromCache(restaurantId),
+          ])
+          setActiveOrders(orders)
+          setMenuItems(menu)
+          toast('Offline mode — using cached data', { icon: '📶' })
+        }
+      } catch (err) {
+        const [orders, menu] = await Promise.all([
+          getOrdersFromCache(restaurantId),
+          getMenuFromCache(restaurantId),
+        ])
+        setActiveOrders(orders)
+        setMenuItems(menu)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [restaurantId, slug])
+
+  const fetchMenu = async (section) => {
+    if (!restaurantId || !slug) return
+    try {
+      const url = `${import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}/api/menu/${restaurantId}?type=${menuFilter}${section ? `&section=${encodeURIComponent(section)}` : ''}`
+      const menu = await fetch(url).then(r => r.json())
       const allItems = Object.values(menu.categories || {}).flat()
       setMenuItems(allItems)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [restaurantId, slug])
+      await cacheMenu(restaurantId, allItems)
+    } catch (err) {
+      const cached = await getMenuFromCache(restaurantId)
+      setMenuItems(cached)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedTable?.section) {
+      fetchMenu(selectedTable.section)
+    }
+  }, [selectedTable?.section, menuFilter])
 
   const categories = ['All', ...Array.from(new Set(menuItems.map(i => i.category)))]
 
@@ -116,25 +174,74 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
     }))
 
     try {
-      await createOrder({
-        restaurantId, tableId: selectedTable.id, tableName: selectedTable.label,
-        section: selectedTable.section || '', items, source: 'DINE_IN',
-      }, slug)
-      smartPrintKOT({
+      let updatedOrder
+      if (orderForActions && orderForActions.status !== 'SETTLED') {
+        updatedOrder = await offlineAddItems(orderForActions, items, slug)
+      } else {
+        updatedOrder = await offlineCreateOrder({
+          restaurantId, tableId: selectedTable.id, tableName: selectedTable.label,
+          section: selectedTable.section || '', items, source: 'DINE_IN',
+        }, slug)
+      }
+
+      const unsentItems = updatedOrder.items.filter(i => !i.kotSent)
+      const foodItems = unsentItems.filter(i =>
+        (i.menuType || 'FOOD').toUpperCase() !== 'LIQUOR'
+      )
+      const liquorItems = unsentItems.filter(i =>
+        (i.menuType || 'FOOD').toUpperCase() === 'LIQUOR'
+      )
+
+      const kotBase = {
         kotNumber: 'K-' + Date.now().toString().slice(-6),
         table: selectedTable.label,
         section: selectedTable.section || '-',
         captain: 'Captain',
-        items: selectedItems.map(i => ({ name: i.name, qty: i.qty })),
-        createdAt: new Date().toISOString(),
-        restaurantName: 'Restaurant'
+      }
+
+      if (foodItems.length > 0) {
+        try {
+          await offlineSendKOT(
+            updatedOrder,
+            foodItems,
+            () => printKOTViAgent('kitchen', { ...kotBase, items: foodItems })
+              .catch(() => smartPrintKOT({ ...kotBase, items: foodItems, createdAt: new Date(), restaurantName: '' })),
+            slug
+          )
+        } catch (err) {
+          toast.error('Kitchen KOT failed: ' + err.message)
+        }
+      }
+
+      if (liquorItems.length > 0) {
+        try {
+          await offlineSendKOT(
+            updatedOrder,
+            liquorItems,
+            () => printKOTViAgent('bar', { ...kotBase, items: liquorItems })
+              .catch(() => smartPrintKOT({ ...kotBase, items: liquorItems, createdAt: new Date(), restaurantName: '' })),
+            slug
+          )
+        } catch (err) {
+          toast.error('Bar KOT failed: ' + err.message)
+        }
+      }
+
+      setActiveOrders(prev => {
+        const idx = prev.findIndex(o => o.id === updatedOrder.id || o.tableId === updatedOrder.tableId)
+        if (idx >= 0) { const next = [...prev]; next[idx] = updatedOrder; return next }
+        return [updatedOrder, ...prev]
       })
-      toast.success('KOT sent successfully!')
+      toast.success(
+        foodItems.length > 0 && liquorItems.length > 0
+          ? 'KOT sent \u2192 Kitchen + Bar'
+          : foodItems.length > 0 ? 'KOT sent \u2192 Kitchen'
+          : 'KOT sent \u2192 Bar'
+      )
       setSelectedItems([])
       setView('tables')
       setSelectedTable(null)
-      const orders = await getActiveOrders(restaurantId, slug)
-      setActiveOrders(orders || [])
+      setOrderForActions(null)
     } catch (err) {
       toast.error(err.message || 'Failed to send KOT')
     }
@@ -167,7 +274,14 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
         </div>
         <p className="text-sm mt-2 opacity-75">Restaurant</p>
         {!isOnline && (
-          <p className="text-xs mt-1 text-red-200">Offline — {pendingCount} pending sync</p>
+          <div className="bg-yellow-500 text-white text-center text-xs py-1.5 font-semibold tracking-wide">
+            📶 OFFLINE MODE — {pendingCount > 0 ? `${pendingCount} actions queued` : 'changes will sync when online'}
+          </div>
+        )}
+        {isOnline && pendingCount > 0 && (
+          <div className="bg-blue-500 text-white text-center text-xs py-1.5 font-semibold tracking-wide">
+            ⟳ Syncing {pendingCount} offline actions...
+          </div>
         )}
       </div>
 
