@@ -14,6 +14,7 @@ import {
   offlineSettle,
 } from '../lib/offlineActions'
 import { printKOTViAgent } from '../lib/printerConfig'
+import { isOnline, enqueueOrder } from '../lib/offlineQueue'
 import { Plus, Printer, FileText, X, Search, RotateCcw, CreditCard, ArrowLeftRight, ArrowRight, Merge } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -167,6 +168,24 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
       let updatedOrder
       if (currentOrder) {
         updatedOrder = await offlineAddItems(currentOrder, [orderItem], slug)
+      } else if (!isOnline()) {
+        const localOrder = {
+          id: `local_${Date.now()}`,
+          restaurantId,
+          tableId: selectedTable.id,
+          tableName: selectedTable.label,
+          section: selectedTable.section || '',
+          items: [orderItem],
+          source: 'DINE_IN',
+          status: 'OPEN',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          _local: true,
+          kotSent: false,
+        }
+        await enqueueOrder(localOrder)
+        updatedOrder = localOrder
+        toast.success('Saved offline – will sync when connected')
       } else {
         updatedOrder = await offlineCreateOrder({
           restaurantId, tableId: selectedTable.id, tableName: selectedTable.label,
@@ -178,7 +197,9 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
         if (idx >= 0) { const next = [...prev]; next[idx] = updatedOrder; return next }
         return [updatedOrder, ...prev]
       })
-      toast.success('Item added')
+      if (isOnline() || currentOrder) {
+        toast.success('Item added')
+      }
       setShowAddItem(false)
     } catch (err) {
       toast.error(err.message || 'Failed to add item')

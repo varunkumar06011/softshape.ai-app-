@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { flushQueue } from './lib/offlineQueue'
+import toast from 'react-hot-toast'
 import SplashScreen from './components/SplashScreen'
 import LandingPage from './pages/LandingPage'
 import RegisterWizard from './pages/RegisterWizard'
@@ -38,7 +41,33 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children
 }
 
+const API_BASE = import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'
+
+function findAnyToken() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.endsWith('_token')) {
+        return localStorage.getItem(key)
+      }
+    }
+  } catch {}
+  return null
+}
+
 function App() {
+  useEffect(() => {
+    const handleOnline = async () => {
+      const token = findAnyToken()
+      const { flushed } = await flushQueue(API_BASE, token)
+      if (flushed > 0) {
+        toast.success(`${flushed} offline order(s) synced`)
+      }
+    }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [])
+
   return (
     <AuthProvider>
       <BrowserRouter>
