@@ -1,29 +1,16 @@
 import { useState, useEffect } from 'react'
 import TopBar from '../components/TopBar'
 import BillModal from '../components/BillModal'
-<<<<<<< HEAD
-import { menuItems } from '../data/mockData'
-import { useAuth } from '../context/AuthContext'
+import { getTenantSections, getActiveOrders, createOrder, addItemsToOrder, sendKOT, printBillAPI, duplicateOrder, settleOrder, swapTable, swapItems, mergeOrders } from '../saas/saasApi'
+import { smartPrintKOT, smartPrintBill } from '../utils/printTemplates'
 import { useSocket } from '../hooks/useSocket'
 import { useOfflineSync } from '../hooks/useOfflineSync'
-import { getTenantSections } from '../saas/saasApi'
-import { smartPrintKOT, smartPrintBill } from '../utils/printTemplates'
-import { initDB, cacheMenu, cacheOrders, cacheSections, queueMutation, getMenuFromCache, getOrdersFromCache, getSectionsFromCache } from '../lib/localCache'
-import { Plus, Printer, FileText, X, Search } from 'lucide-react'
-import toast from 'react-hot-toast'
-
-const CashierDine = ({ slug, restaurantId }) => {
-  const { user, logout } = useAuth()
-=======
-import { tables } from '../data/mockData'
-import { getActiveOrders, createOrder, addItemsToOrder, sendKOT, printBillAPI, duplicateOrder, settleOrder, swapTable, swapItems, mergeOrders } from '../saas/saasApi'
-import { printKOT, printBill } from '../utils/printTemplates'
+import { initDB } from '../lib/localCache'
 import { Plus, Printer, FileText, X, Search, RotateCcw, CreditCard, ArrowLeftRight, ArrowRight, Merge } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }) => {
   const slug = (() => { try { const s = localStorage.getItem('saas_owner'); return s ? JSON.parse(s).slug : ''; } catch { return '' } })()
->>>>>>> e7e9141d7f881a36cb4af153ea5a46377582488c
   const [selectedTable, setSelectedTable] = useState(null)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
@@ -33,10 +20,9 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
   const [activeOrders, setActiveOrders] = useState([])
   const [menuItems, setMenuItems] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
-<<<<<<< HEAD
+  const [loading, setLoading] = useState(true)
   const [tables, setTables] = useState([])
   const [tablesLoading, setTablesLoading] = useState(false)
-  const [activeOrders, setActiveOrders] = useState([])
 
   const { isOnline, pendingCount } = useOfflineSync(slug)
 
@@ -75,9 +61,6 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
     }
     fetchTables()
   }, [restaurantId])
-=======
-  const [loading, setLoading] = useState(true)
->>>>>>> e7e9141d7f881a36cb4af153ea5a46377582488c
 
   const groupedTables = tables.reduce((acc, table) => {
     if (!acc[table.section]) acc[table.section] = []
@@ -104,25 +87,7 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
     }
   }
 
-<<<<<<< HEAD
-  const handleKOTPrint = () => {
-    if (selectedTable) {
-      const items = currentOrder.map(i => ({ name: i.name, qty: i.qty, price: i.price }))
-      smartPrintKOT({
-        kotNumber: 'K-' + Date.now().toString().slice(-6),
-        table: selectedTable.label,
-        section: selectedTable.section,
-        captain: user?.name || '-',
-        items,
-        createdAt: new Date().toISOString(),
-        restaurantName: 'VGrand Restaurant'
-      })
-      toast.success('KOT sent to kitchen printer')
-    }
-  }
-=======
   useEffect(() => { fetchData() }, [restaurantId, slug])
->>>>>>> e7e9141d7f881a36cb4af153ea5a46377582488c
 
   const currentOrder = selectedTable ? tableOrderMap[selectedTable.id] : null
   const orderItems = currentOrder?.items || []
@@ -163,10 +128,10 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
     if (unsent.length === 0) { toast.error('All items already sent'); return }
     try {
       await sendKOT(currentOrder.id, unsent.map(i => i.id), slug)
-      printKOT({
+      smartPrintKOT({
         kotNumber: `KOT-${Date.now()}`, table: currentOrder.tableName,
         section: currentOrder.section, captain: currentOrder.captainName,
-        items: unsent, createdAt: new Date(), restaurantName: 'Restaurant',
+        items: unsent, createdAt: new Date().toISOString(), restaurantName: 'Restaurant',
       })
       toast.success('KOT printed')
       fetchData()
@@ -179,7 +144,7 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
     if (!currentOrder) return
     try {
       const updated = await printBillAPI(currentOrder.id, slug)
-      printBill({
+      smartPrintBill({
         billNumber: updated.billNumber, table: updated.tableName, section: updated.section,
         items: updated.items, subtotal: updated.subtotal, cgst: updated.cgst,
         sgst: updated.sgst, total: updated.total, restaurantName: 'Restaurant',
@@ -225,54 +190,35 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
 
   return (
     <div className="min-h-screen bg-gray-50">
-<<<<<<< HEAD
-      <TopBar restaurantName="VGrand Restaurant" isOnline={isOnline} pendingSync={pendingCount} />
+      <TopBar restaurantName="Restaurant" onLogout={onLogout} isOnline={isOnline} pendingSync={pendingCount} />
 
       {!isOnline && (
-        <div className="bg-red-50 text-red-700 text-xs px-6 py-1 border-b border-red-200 flex items-center justify-between">
-          <span>No internet — billing works offline. {pendingCount} order{pendingCount !== 1 ? 's' : ''} pending sync.</span>
+        <div className="bg-red-50 text-red-700 text-xs px-6 py-1 border-b border-red-200">
+          No internet — billing works offline. {pendingCount} order{pendingCount !== 1 ? 's' : ''} pending sync.
         </div>
       )}
       {isOnline && pendingCount > 0 && (
-        <div className="bg-green-50 text-green-700 text-xs px-6 py-1 border-b border-green-200 flex items-center justify-between">
-          <span>Back online — syncing {pendingCount} order{pendingCount !== 1 ? 's' : ''}...</span>
+        <div className="bg-green-50 text-green-700 text-xs px-6 py-1 border-b border-green-200">
+          Back online — syncing {pendingCount} order{pendingCount !== 1 ? 's' : ''}...
         </div>
       )}
-
-      <div className="flex h-[calc(100vh-73px)]">
-        <div className="w-3/5 p-6 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-6">Tables</h2>
-          {tablesLoading ? (
-            <p className="text-gray-500">Loading tables...</p>
-          ) : tables.length === 0 ? (
-            <p className="text-gray-500">No tables configured</p>
-=======
-      <TopBar restaurantName="Restaurant" onLogout={onLogout} />
 
       <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-73px)]">
         <div className="w-full lg:w-3/5 p-4 lg:p-6 overflow-y-auto">
           <h2 className="text-xl font-bold mb-4 lg:mb-6">Tables</h2>
-          {loading ? (
+          {tablesLoading ? (
+            <p className="text-gray-500">Loading tables...</p>
+          ) : tables.length === 0 ? (
+            <p className="text-gray-500">No tables configured</p>
+          ) : loading ? (
             <div className="animate-pulse space-y-4">
               {[1,2,3].map(i => <div key={i} className="h-24 bg-gray-200 rounded-xl" />)}
             </div>
->>>>>>> e7e9141d7f881a36cb4af153ea5a46377582488c
           ) : (
             <div className="space-y-6">
               {Object.entries(groupedTables).map(([section, sectionTables]) => (
                 <div key={section}>
                   <h3 className="font-semibold mb-3">{section}</h3>
-<<<<<<< HEAD
-                  <div className="grid grid-cols-4 gap-4">
-                    {sectionTables.map((table) => (
-                      <TableCard
-                        key={table.id}
-                        table={table}
-                        status={table.status}
-                        onClick={() => setSelectedTable(table)}
-                      />
-                    ))}
-=======
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                     {sectionTables.map((table) => {
                       const status = tableStatus(table.id)
@@ -293,7 +239,6 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout })
                         </button>
                       )
                     })}
->>>>>>> e7e9141d7f881a36cb4af153ea5a46377582488c
                   </div>
                 </div>
               ))}
