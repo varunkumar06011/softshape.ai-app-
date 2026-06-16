@@ -31,12 +31,26 @@ export default function TenantPortal() {
         <div className="bg-white rounded-[48px] border border-[#FFCDD2] p-10 max-w-md w-full text-center">
           <h2 className="text-xl font-black text-[#1A1A1A] mb-2">Restaurant not found</h2>
           <p className="text-sm text-[#5C5C5C] mb-6">We couldn't locate a restaurant with that URL.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-8 py-3 bg-[#E53935] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-[#B71C1C] active:scale-[0.98] transition-all"
-          >
-            Go to Softshape.ai
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full px-8 py-3 bg-[#E53935] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-[#B71C1C] active:scale-[0.98] transition-all"
+            >
+              Go to Login
+            </button>
+            <button
+              onClick={() => navigate('/register')}
+              className="w-full px-8 py-3 border-2 border-[#FFCDD2] text-[#5C5C5C] rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-[#FFF5F5] transition-all"
+            >
+              Create new account
+            </button>
+            <button
+              onClick={() => { localStorage.clear(); navigate('/'); }}
+              className="text-xs text-[#5C5C5C] hover:text-[#E53935] underline"
+            >
+              Clear browser data and start fresh
+            </button>
+          </div>
         </div>
       </div>
     );
