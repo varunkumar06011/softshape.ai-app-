@@ -5,6 +5,19 @@ import { getOnboardingData, saveOnboardingStep, getOwner } from './saasApi';
 import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+function getPresetsForType(restaurantType) {
+  switch (restaurantType) {
+    case 'Bar & Restaurant':
+      return { sections: [{ name: 'Main Hall', tables: 10 }, { name: 'Bar', tables: 6 }], menuTypes: ['FOOD', 'LIQUOR'], printerCount: 2 }
+    case 'QSR':
+      return { sections: [{ name: 'Counter', tables: 4 }], menuTypes: ['FOOD'], printerCount: 1 }
+    case 'Cloud Kitchen':
+      return { sections: [{ name: 'Delivery', tables: 1 }], menuTypes: ['FOOD'], printerCount: 1 }
+    default:
+      return { sections: [{ name: 'Main Hall', tables: 8 }], menuTypes: ['FOOD'], printerCount: 1 }
+  }
+}
+
 const TOTAL_STEPS = 6;
 
 export default function OnboardingWizard() {
@@ -124,11 +137,16 @@ export default function OnboardingWizard() {
 }
 
 function Step1({ form, onChange, inputClass }) {
+  const owner = getOwner()
+  const restaurantType = owner?.restaurantType || 'Other'
   const f = { name: '', address: '', gst: '', logo: '', cuisine: '', seating: '', swiggyStoreId: '', zomatoOutletId: '', ...form };
   const set = (k, v) => onChange({ ...f, [k]: v });
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-8">
+      <div className="bg-blue-50 text-blue-800 text-sm font-medium px-4 py-3 rounded-xl mb-4">
+        We've pre-filled your setup for {restaurantType} – you can customise below.
+      </div>
       <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-5">Restaurant details</h2>
       <div className="space-y-4">
         <input type="text" placeholder="Restaurant name" value={f.name} onChange={(e) => set('name', e.target.value)} className={inputClass} />
@@ -162,6 +180,16 @@ function Step1({ form, onChange, inputClass }) {
 
 function Step2({ form, onChange }) {
   const sections = form && form.length ? form : [];
+
+  useEffect(() => {
+    if (sections.length > 0) return
+    const owner = getOwner()
+    const presets = getPresetsForType(owner?.restaurantType)
+    if (presets.sections.length > 0) {
+      onChange(presets.sections.map(s => ({ ...s, capacity: 4 })))
+    }
+  }, [])
+
   const addSection = () => {
     onChange([...sections, { name: '', tables: 1, capacity: 4 }]);
   };
