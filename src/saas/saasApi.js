@@ -38,6 +38,17 @@ export function logoutOwner() {
   localStorage.removeItem('saas_onboarding');
 }
 
+export async function updateBillTemplate(billTemplate) {
+  const res = await fetch(`${SAAS_API}/api/onboarding/bill-template`, {
+    method: 'PATCH',
+    headers: authHeader(),
+    body: JSON.stringify({ billTemplate }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to update bill template');
+  return json;
+}
+
 export async function saveOnboardingStep(step, data) {
   const current = JSON.parse(localStorage.getItem('saas_onboarding') || '{}');
   const updated = { ...current, [step]: data };

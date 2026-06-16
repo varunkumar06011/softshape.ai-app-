@@ -12,13 +12,67 @@ const mockKOTData = {
   items: [{ name: 'Test Item', qty: 2 }],
 }
 
-const mockBillData = {
-  billNumber: 'TEST-001',
-  table: 'T-1',
-  restaurantName: 'My Restaurant',
-  items: [{ name: 'Test Item', qty: 2, price: 150 }],
-  subtotal: 300, cgst: 7.5, sgst: 7.5, total: 315,
-  paymentMode: 'CASH',
+function getBillTemplate() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.endsWith('_session')) {
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          const session = JSON.parse(raw)
+          if (session.billTemplate) return session.billTemplate
+        }
+      }
+    }
+  } catch {}
+  return 'CLASSIC'
+}
+
+function buildMockBillData() {
+  const template = getBillTemplate()
+  const base = {
+    billNumber: 'TEST-001',
+    table: 'T-1',
+    items: [{ name: 'Test Item', qty: 2, price: 150 }],
+    subtotal: 300, cgst: 7.5, sgst: 7.5, total: 315,
+    paymentMode: 'CASH',
+    template,
+  }
+
+  if (template === 'CLASSIC') {
+    return {
+      ...base,
+      restaurantName: 'My Restaurant',
+      headerLines: [],
+      footerLines: ['Thank you! Visit again'],
+      showGstLines: true,
+    }
+  }
+
+  if (template === 'MINIMAL') {
+    return {
+      ...base,
+      restaurantName: '',
+      headerLines: [],
+      footerLines: [],
+      showGstLines: false,
+    }
+  }
+
+  if (template === 'HOTEL') {
+    return {
+      ...base,
+      restaurantName: 'HOTEL GRAND',
+      address: '12 MG Road, Bangalore',
+      gstin: '29ABCDE1234F1Z5',
+      headerLines: ['HOTEL GRAND', '12 MG Road, Bangalore', 'GSTIN: 29ABCDE1234F1Z5'],
+      footerLines: ['Thank you for your stay'],
+      showGstLines: true,
+      roomNumber: '___',
+    }
+  }
+
+  return base
 }
 
 const PrintStation = () => {
@@ -50,7 +104,7 @@ const PrintStation = () => {
         await printKOTViAgent('bar', mockKOTData)
         toast.success('Bar KOT printed')
       } else if (key === 'bill') {
-        await printBillViaAgent(mockBillData)
+        await printBillViaAgent(buildMockBillData())
         toast.success('Bill printed')
       }
     } catch (err) {

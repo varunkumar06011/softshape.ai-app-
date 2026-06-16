@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, CASHIER_TYPES } from './plans';
-import { getOnboardingData, saveOnboardingStep, getOwner } from './saasApi';
+import { getOnboardingData, saveOnboardingStep, getOwner, updateBillTemplate } from './saasApi';
 import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -453,6 +453,8 @@ function StepPrinter({ onboarding, persist }) {
   const [kotIp, setKotIp] = useState(onboarding.printers?.kotIp || '192.168.1.100');
   const [billIp, setBillIp] = useState(onboarding.printers?.billIp || '192.168.1.101');
   const [tested, setTested] = useState({ kot: false, bill: false });
+  const [selectedTemplate, setSelectedTemplate] = useState(onboarding.billTemplate || 'CLASSIC');
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const save = (kotVal, billVal) => {
     persist('printers', { kotIp: kotVal, billIp: billVal });
@@ -463,6 +465,20 @@ function StepPrinter({ onboarding, persist }) {
       setTested((prev) => ({ ...prev, [type]: true }));
       toast.success(`${type === 'kot' ? 'KOT' : 'Bill'} printer test sent!`);
     }, 1000);
+  };
+
+  const handleTemplateSelect = async (template) => {
+    setSelectedTemplate(template);
+    setSavingTemplate(true);
+    try {
+      await updateBillTemplate(template);
+      persist('billTemplate', template);
+      toast.success('Bill format saved');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save bill format');
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
   const printers = [
@@ -551,6 +567,80 @@ function StepPrinter({ onboarding, persist }) {
           </div>
         </div>
       ))}
+
+      {/* Bill Format */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 border border-slate-200 p-5 sm:p-7">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Bill format</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Choose how your customer receipts look</p>
+          </div>
+          {savingTemplate && <span className="text-xs text-slate-400 animate-pulse">Saving...</span>}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              key: 'CLASSIC',
+              title: 'Classic',
+              lines: [
+                'LOGO',
+                '─────────────────',
+                'Item        Qty  Amt',
+                'Paneer...    2   300',
+                '─────────────────',
+                'CGST 2.5%          7.50',
+                'SGST 2.5%          7.50',
+                'Total            ₹315.00',
+                '─────────────────',
+                'Thank you! Visit again',
+              ],
+            },
+            {
+              key: 'MINIMAL',
+              title: 'Minimal',
+              lines: [
+                '─────────────────',
+                'Paneer x2    ₹300',
+                '─────────────────',
+                'Total        ₹315',
+                '─────────────────',
+              ],
+            },
+            {
+              key: 'HOTEL',
+              title: 'Hotel',
+              lines: [
+                'HOTEL NAME',
+                '12 MG Road, Bangalore',
+                'GSTIN: 29ABCDE1234F1Z5',
+                '─────────────────',
+                'Table: T-1  Room: ___',
+                'Item          Qty  Amt',
+                'Paneer...      2   300',
+                '─────────────────',
+                'Total        ₹315.00',
+              ],
+            },
+          ].map((card) => (
+            <button
+              key={card.key}
+              onClick={() => handleTemplateSelect(card.key)}
+              className={`text-left rounded-xl border p-4 transition-all ${
+                selectedTemplate === card.key
+                  ? 'border-[#E53935] bg-red-50 ring-1 ring-[#E53935]'
+                  : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${selectedTemplate === card.key ? 'text-[#E53935]' : 'text-slate-500'}`}>{card.title}</p>
+              <div className="bg-white border border-slate-100 rounded-lg p-3 font-mono text-[10px] leading-tight text-slate-600 space-y-0.5">
+                {card.lines.map((l, i) => (
+                  <div key={i} className={l.includes('LOGO') ? 'text-center font-bold text-slate-800' : ''}>{l}</div>
+                ))}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="bg-[#FFFDE7] border border-[#FFF9C4] rounded-xl p-4 sm:p-5">
         <p className="text-[10px] font-bold text-[#F9A825] uppercase tracking-wider mb-3">💡 Quick tips</p>
