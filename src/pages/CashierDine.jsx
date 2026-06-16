@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { currentBase } from '../lib/serverUrl'
 import TopBar from '../components/TopBar'
 import BillModal from '../components/BillModal'
-import { getTenantSections, getActiveOrders, duplicateOrder, swapTable, swapItems, mergeOrders } from '../saas/saasApi'
+import { getTenantSections, getActiveOrders, duplicateOrder, swapTable, swapItems, mergeOrders, excludeOrder, reopenOrder, getStationPermissions } from '../saas/saasApi'
 import { smartPrintKOT, smartPrintBill } from '../utils/printTemplates'
 import { useSocket } from '../hooks/useSocket'
 import { useOfflineSync } from '../hooks/useOfflineSync'
@@ -16,7 +16,7 @@ import {
 } from '../lib/offlineActions'
 import { printKOTViAgent } from '../lib/printerConfig'
 import { isOnline, enqueueOrder } from '../lib/offlineQueue'
-import { Plus, Printer, FileText, X, Search, RotateCcw, CreditCard, ArrowLeftRight, ArrowRight, Merge } from 'lucide-react'
+import { Plus, Printer, FileText, X, Search, RotateCcw, CreditCard, ArrowLeftRight, ArrowRight, Merge, MoreHorizontal, Scissors, Trash2, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSections = [], handleOnlineOrders = false, onLogout }) => {
@@ -34,6 +34,13 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
   const [tables, setTables] = useState([])
   const [tablesLoading, setTablesLoading] = useState(false)
   const [activeView, setActiveView] = useState('dine-in')
+  const [showExcludeModal, setShowExcludeModal] = useState(false)
+  const [excludeTarget, setExcludeTarget] = useState(null)
+  const [showSplit, setShowSplit] = useState(false)
+  const [splitSelected, setSplitSelected] = useState([])
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [longPressTimer, setLongPressTimer] = useState(null)
+  const perms = getStationPermissions()
 
   const { isOnline, pendingCount } = useOfflineSync(slug)
 
@@ -48,7 +55,14 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
     onOrderSettled: ({ orderId }) => {
       setActiveOrders(prev => prev.filter(o => o.id !== orderId))
       setSelectedTable(null)
-    }
+    },
+    onOrderExcluded: ({ orderId }) => {
+      setActiveOrders(prev => prev.filter(o => o.id !== orderId))
+      if (selectedTable && tableOrderMap[selectedTable.id]?.id === orderId) setSelectedTable(null)
+    },
+    onBillReopened: ({ orderId }) => {
+      fetchData()
+    },
   })
 
   useEffect(() => {
@@ -313,6 +327,56 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
     }
   }
 
+  const handleExclude = async (orderId, reason, performedByUsername) => {
+    try {
+      await excludeOrder(orderId, { reason, performedBy: stationId || '', performedByUsername: performedByUsername || '' }, slug)
+      setActiveOrders(prev => prev.filter(o => o.id !== orderId))
+      setSelectedTable(null)
+      setShowExcludeModal(false)
+      setExcludeTarget(null)
+      toast.success('Transaction excluded')
+    } catch (err) {
+      toast.error(err.message || 'Exclude failed')
+    }
+  }
+
+  const handleReopen = async (orderId) => {
+    try {
+      await reopenOrder(orderId, { performedBy: stationId || '', performedByUsername: perms.stationName || '' }, slug)
+      toast.success('Bill reopened')
+      fetchData()
+    } catch (err) {
+      toast.error(err.message || 'Reopen failed')
+    }
+  }
+
+  const handleSplit = async (targetTable) => {
+    if (!currentOrder || splitSelected.length === 0) return
+    try {
+      const dup = await duplicateOrder(currentOrder.id, slug)
+      await swapItems(currentOrder.id, dup.id, splitSelected)
+      toast.success('Items moved to new table')
+      setShowSplit(false)
+      setSplitSelected([])
+      fetchData()
+    } catch (err) {
+      toast.error(err.message || 'Split failed')
+    }
+  }
+
+  const startLongPress = (table, order) => {
+    if (!order) return
+    const timer = setTimeout(() => {
+      setExcludeTarget(order)
+      setShowExcludeModal(true)
+    }, 600)
+    setLongPressTimer(timer)
+  }
+
+  const endLongPress = () => {
+    if (longPressTimer) { clearTimeout(longPressTimer); setLongPressTimer(null) }
+  }
+
   const tableStatus = (tableId) => {
     const o = tableOrderMap[tableId]
     if (!o) return 'free'
@@ -323,6 +387,12 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar restaurantName="Restaurant" onLogout={onLogout} isOnline={isOnline} pendingSync={pendingCount} />
+
+      <div className="flex items-center justify-end px-4 pt-2">
+        <button onClick={() => setShowMoreMenu(true)} className="p-2 hover:bg-gray-200 rounded-lg transition-colors" title="More options">
+          <MoreHorizontal className="w-5 h-5 text-gray-600" />
+        </button>
+      </div>
 
       {!isOnline && (
         <div className="bg-yellow-500 text-white text-center text-xs py-1.5 font-semibold tracking-wide">
@@ -379,16 +449,22 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
                       const statusClass = status === 'free' ? 'bg-green-50 border-green-300 text-green-700'
                         : status === 'billed' ? 'bg-red-50 border-red-300 text-red-700'
                         : 'bg-orange-50 border-orange-300 text-orange-700'
+                      const tableOrder = tableOrderMap[table.id]
                       return (
                         <button
                           key={table.id}
                           onClick={() => setSelectedTable(table)}
+                          onTouchStart={() => startLongPress(table, tableOrder)}
+                          onTouchEnd={endLongPress}
+                          onMouseDown={() => startLongPress(table, tableOrder)}
+                          onMouseUp={endLongPress}
+                          onMouseLeave={endLongPress}
                           className={`p-4 rounded-2xl border-2 text-center transition-all hover:shadow-md ${statusClass} ${selectedTable?.id === table.id ? 'ring-2 ring-brand' : ''}`}
                         >
                           <p className="font-bold text-lg">{table.label}</p>
                           <p className="text-xs capitalize mt-1">{status}</p>
-                          {tableOrderMap[table.id] && (
-                            <p className="text-xs mt-1">₹{Math.round(tableOrderMap[table.id].total)}</p>
+                          {tableOrder && (
+                            <p className="text-xs mt-1">₹{Math.round(tableOrder.total)}</p>
                           )}
                         </button>
                       )
@@ -430,42 +506,62 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
                     ))}
                   </div>
 
-                  <div className="border-t border-gray-200 pt-4 mb-6">
-                    <div className="flex justify-between text-lg font-bold">
+                  <div className="border-t border-gray-200 pt-4 mb-6 space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>₹{Math.round(currentOrder?.subtotal || total)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">CGST 2.5%</span><span>₹{Math.round(currentOrder?.cgst || total * 0.025)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">SGST 2.5%</span><span>₹{Math.round(currentOrder?.sgst || total * 0.025)}</span></div>
+                    <div className="flex justify-between text-lg font-bold border-t border-gray-100 pt-2">
                       <span>Total</span>
-                      <span>₹{Math.round(total)}</span>
+                      <span>₹{Math.round(currentOrder?.total || total)}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <button onClick={() => setShowAddItem(true)} className="w-full py-3 bg-brand text-white rounded-xl hover:bg-brand-dark transition-colors flex items-center justify-center gap-2">
-                      <Plus className="w-4 h-4" /> Add Item
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <button onClick={() => setShowAddItem(true)} className="flex-1 min-w-[80px] py-2.5 bg-brand text-white rounded-xl hover:bg-brand-dark transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                      <Plus className="w-3.5 h-3.5" /> Add
                     </button>
-                    <button onClick={handleSendKOT} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                      <Printer className="w-4 h-4" /> KOT Print
+                    <button onClick={handleSendKOT} className="flex-1 min-w-[80px] py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                      <Printer className="w-3.5 h-3.5" /> KOT
                     </button>
-                    {currentOrder?.status === 'BILLED' ? (
+                    {currentOrder?.status === 'OPEN' && (
                       <>
-                        <button onClick={handleDuplicate} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                          <RotateCcw className="w-4 h-4" /> Add More Items
+                        <button onClick={handlePrintBill} className="flex-1 min-w-[80px] py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                          <FileText className="w-3.5 h-3.5" /> Bill
                         </button>
-                        <button onClick={() => setShowBillModal(true)} className="w-full py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
-                          <CreditCard className="w-4 h-4" /> Settle Payment
+                        <button onClick={() => setShowBillModal(true)} className="flex-1 min-w-[80px] py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                          <CreditCard className="w-3.5 h-3.5" /> Settle
                         </button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={handlePrintBill} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                          <FileText className="w-4 h-4" /> Print Bill
-                        </button>
-                        <button onClick={() => setShowSwapTable(true)} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                          <ArrowLeftRight className="w-4 h-4" /> Swap Table
-                        </button>
-                        <button onClick={() => setShowMerge(true)} className="w-full py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                          <Merge className="w-4 h-4" /> Merge Tables
+                        {perms.canExclude !== false && (
+                          <button onClick={() => { setExcludeTarget(currentOrder); setShowExcludeModal(true) }} className="flex-1 min-w-[80px] py-2.5 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                            <Trash2 className="w-3.5 h-3.5" /> Void
+                          </button>
+                        )}
+                        <button onClick={() => setShowSplit(true)} className="flex-1 min-w-[80px] py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                          <Scissors className="w-3.5 h-3.5" /> Split
                         </button>
                       </>
                     )}
+                    {(currentOrder?.status === 'BILLED' || currentOrder?.status === 'SETTLED') && (
+                      <>
+                        <button onClick={() => setShowBillModal(true)} className="flex-1 min-w-[80px] py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                          <CreditCard className="w-3.5 h-3.5" /> Settle
+                        </button>
+                        {perms.canReopen && (
+                          <button onClick={() => handleReopen(currentOrder.id)} className="flex-1 min-w-[80px] py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 text-xs font-semibold">
+                            <RefreshCw className="w-3.5 h-3.5" /> Reopen
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setShowSwapTable(true)} className="flex-1 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 text-[10px] font-semibold text-gray-500">
+                      <ArrowLeftRight className="w-3 h-3" /> Swap Table
+                    </button>
+                    <button onClick={() => setShowMerge(true)} className="flex-1 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-1 text-[10px] font-semibold text-gray-500">
+                      <Merge className="w-3 h-3" /> Merge
+                    </button>
                   </div>
                 </>
               ) : (
@@ -579,6 +675,52 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
           }}
         />
       )}
+
+      {/* Exclude Transaction Modal */}
+      {showExcludeModal && excludeTarget && (
+        <ExcludeTransactionModal
+          order={excludeTarget}
+          onClose={() => { setShowExcludeModal(false); setExcludeTarget(null) }}
+          onConfirm={(reason, legalAck) => {
+            if (!legalAck) { toast.error('You must acknowledge the legal disclaimer'); return }
+            handleExclude(excludeTarget.id, reason, perms.stationName || '')
+          }}
+        />
+      )}
+
+      {/* Split Bill Modal */}
+      {showSplit && currentOrder && (
+        <SplitBillModal
+          order={currentOrder}
+          onClose={() => { setShowSplit(false); setSplitSelected([]) }}
+          onConfirm={handleSplit}
+          splitSelected={splitSelected}
+          setSplitSelected={setSplitSelected}
+        />
+      )}
+
+      {/* More Menu */}
+      {showMoreMenu && (
+        <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 sm:items-center" onClick={() => setShowMoreMenu(false)}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">More Options</h3>
+              <button onClick={() => setShowMoreMenu(false)} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-2">
+              <button onClick={() => { setShowMoreMenu(false); /* placeholder for Item Analytics */ }} className="w-full p-3 bg-gray-50 rounded-xl text-left hover:bg-gray-100 transition-colors text-sm font-medium text-gray-500">
+                Item Analytics (coming soon)
+              </button>
+              <button onClick={() => { setShowMoreMenu(false); /* placeholder for Past Transactions */ }} className="w-full p-3 bg-gray-50 rounded-xl text-left hover:bg-gray-100 transition-colors text-sm font-medium text-gray-500">
+                Past Transactions (coming soon)
+              </button>
+              <button onClick={() => { setShowMoreMenu(false); /* placeholder for Bill Finder */ }} className="w-full p-3 bg-gray-50 rounded-xl text-left hover:bg-gray-100 transition-colors text-sm font-medium text-gray-500">
+                Bill Finder (coming soon)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -663,6 +805,87 @@ function MergeModal({ currentOrder, activeOrders, onClose, onMerge }) {
               <Merge className="w-4 h-4 text-gray-400" />
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ExcludeTransactionModal({ order, onClose, onConfirm }) {
+  const [reason, setReason] = useState('Cancelled by Customer')
+  const [customReason, setCustomReason] = useState('')
+  const [legalAck, setLegalAck] = useState(false)
+
+  const finalReason = reason === 'Other' ? customReason : reason
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50 sm:items-center" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">Exclude Transaction</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Bill #{order.billNumber || order.id.slice(-6)} — Table {order.tableName} — ₹{Math.round(order.total)}
+        </p>
+        <div className="space-y-3 mb-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Reason</label>
+            <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand">
+              <option>Cancelled by Customer</option>
+              <option>Test Entry</option>
+              <option>Manager Approved Void</option>
+              <option>Other</option>
+            </select>
+          </div>
+          {reason === 'Other' && (
+            <input type="text" placeholder="Enter reason" value={customReason} onChange={(e) => setCustomReason(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand" />
+          )}
+          <label className="flex items-start gap-2 text-xs text-gray-600">
+            <input type="checkbox" checked={legalAck} onChange={(e) => setLegalAck(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand" />
+            <span>I confirm this exclusion is authorised and will be recorded in the audit log.</span>
+          </label>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold">Cancel</button>
+          <button onClick={() => onConfirm(finalReason, legalAck)} disabled={!legalAck || !finalReason.trim()}
+            className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors text-sm font-semibold disabled:opacity-50">Confirm</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SplitBillModal({ order, onClose, onConfirm, splitSelected, setSplitSelected }) {
+  const toggleItem = (itemId) => {
+    setSplitSelected(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId])
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">Split Bill</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5" /></button>
+        </div>
+        <p className="text-sm text-gray-500 mb-3">Select items to move to a new table:</p>
+        <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+          {order.items.map((item) => (
+            <label key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+              <input type="checkbox" checked={splitSelected.includes(item.id)} onChange={() => toggleItem(item.id)} className="w-4 h-4 accent-brand" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{item.name}</p>
+                <p className="text-xs text-gray-500">₹{item.price} x {item.qty}</p>
+              </div>
+              <p className="text-sm font-semibold">₹{item.price * item.qty}</p>
+            </label>
+          ))}
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold">Cancel</button>
+          <button onClick={onConfirm} disabled={splitSelected.length === 0}
+            className="flex-1 py-3 bg-brand text-white rounded-xl hover:bg-brand-dark transition-colors text-sm font-semibold disabled:opacity-50">Move Selected</button>
         </div>
       </div>
     </div>

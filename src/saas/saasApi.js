@@ -196,7 +196,7 @@ export async function updateOnlineOrderStatus(orderId, status) {
 // ── Reports ──
 export async function getReportSummary(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
-  const res = await fetch(`${currentBase}/api/reports/summary${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const res = await fetch(`${currentBase}/api/reports/summary/${restaurantId}${qs}`, { headers: tenantAuthHeader(restaurantId) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch summary');
   return json;
@@ -244,7 +244,7 @@ export async function getCaptainStats(restaurantId, slug, from, to) {
 
 export async function getDailyReport(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
-  const res = await fetch(`${currentBase}/api/reports/daily${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const res = await fetch(`${currentBase}/api/reports/summary/${restaurantId}${qs}`, { headers: tenantAuthHeader(restaurantId) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch daily report');
   return json;
@@ -252,7 +252,7 @@ export async function getDailyReport(restaurantId, from, to) {
 
 export async function getChannelBreakdown(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
-  const res = await fetch(`${currentBase}/api/reports/channel-breakdown${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const res = await fetch(`${currentBase}/api/reports/channel-breakdown/${restaurantId}${qs}`, { headers: tenantAuthHeader(restaurantId) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch channel breakdown');
   return json;
@@ -398,4 +398,85 @@ export async function analyzeMenuImage(imageFile) {
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Analysis failed');
   return json;
+}
+
+// ── Exclude / Reopen / Refund ──
+export async function excludeOrder(orderId, payload, slug) {
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/exclude`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(payload) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to exclude order');
+  return json;
+}
+
+export async function reopenOrder(orderId, payload, slug) {
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/reopen`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(payload) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to reopen order');
+  return json;
+}
+
+export async function refundOrder(orderId, payload, slug) {
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/refund`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(payload) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to refund order');
+  return json;
+}
+
+export async function searchOrders(restaurantId, filters, slug) {
+  const qs = new URLSearchParams(filters).toString();
+  const res = await fetch(`${currentBase}/api/orders/search/${restaurantId}?${qs}`, { headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to search orders');
+  return json;
+}
+
+// ── New Reports ──
+export async function getTopItems(restaurantId, from, to, limit = 10) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from); if (to) qs.set('to', to); qs.set('limit', String(limit));
+  const res = await fetch(`${currentBase}/api/reports/top-items/${restaurantId}?${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch top items');
+  return json;
+}
+
+export async function getItemRevenue(restaurantId, from, to) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from); if (to) qs.set('to', to);
+  const res = await fetch(`${currentBase}/api/reports/item-revenue/${restaurantId}?${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch item revenue');
+  return json;
+}
+
+export async function getPaymentModeReport(restaurantId, from, to) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from); if (to) qs.set('to', to);
+  const res = await fetch(`${currentBase}/api/reports/payment-mode/${restaurantId}?${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch payment mode report');
+  return json;
+}
+
+export async function getCashierPerformance(restaurantId, from, to) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from); if (to) qs.set('to', to);
+  const res = await fetch(`${currentBase}/api/reports/cashier-performance/${restaurantId}?${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch cashier performance');
+  return json;
+}
+
+export async function getExcludedTransactions(restaurantId, from, to) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from); if (to) qs.set('to', to);
+  const res = await fetch(`${currentBase}/api/reports/excluded-transactions/${restaurantId}?${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch excluded transactions');
+  return json;
+}
+
+// ── Permissions ──
+export function getStationPermissions() {
+  try { return JSON.parse(localStorage.getItem('station_config') || '{}'); } catch { return {}; }
 }

@@ -13,6 +13,7 @@ import MenuManagement from './pages/MenuManagement'
 import StaffManagement from './pages/StaffManagement'
 import TableManagement from './pages/TableManagement'
 import ReportsPage from './pages/ReportsPage'
+import BillFinder from './pages/BillFinder'
 import MarketingAI from './pages/MarketingAI'
 import CashierDine from './pages/CashierDine'
 import CashierDelivery from './pages/CashierDelivery'
@@ -108,6 +109,11 @@ function App() {
           <Route path="/admin/reports" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <ReportsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/bill-finder" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <BillFinder />
             </ProtectedRoute>
           } />
           <Route path="/admin/marketing" element={

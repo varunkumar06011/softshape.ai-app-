@@ -18,6 +18,14 @@ export default function TenantCashierWrapper() {
         onSuccess={(session) => {
           localStorage.setItem(sessionKey, 'true');
           localStorage.setItem(`tenant_${slug}_cashier_session`, JSON.stringify(session));
+          localStorage.setItem('station_config', JSON.stringify({
+            stationName: session.stationName,
+            stationId: session.stationId,
+            canReopen: session.canReopen || false,
+            canExclude: session.canExclude !== false,
+            canDiscount: session.canDiscount || false,
+            canRefund: session.canRefund || false,
+          }));
           setAuthed(true);
         }}
       />

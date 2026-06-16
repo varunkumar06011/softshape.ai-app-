@@ -18,7 +18,7 @@ function getPresetsForType(restaurantType) {
   }
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 export default function OnboardingWizard() {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ export default function OnboardingWizard() {
   const inputClass =
     'w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-[#E53935] focus:ring-2 focus:ring-red-100 transition-all placeholder:text-slate-400';
 
-  const stepLabels = ['Details', 'Floor plan', 'Menu', 'Staff', 'Printers', 'Plan'];
+  const stepLabels = ['Details', 'Floor plan', 'Menu', 'Staff', 'Printers', 'Plan', 'Disclaimer'];
 
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4">
@@ -111,6 +111,7 @@ export default function OnboardingWizard() {
         {step === 4 && <Step4 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onboarding={onboarding} />}
         {step === 5 && <StepPrinter onboarding={onboarding} persist={persist} />}
         {step === 6 && <Step5 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onProceed={goNext} />}
+        {step === 7 && <StepDisclaimer onAck={() => persist('disclaimerAck', true)} ack={onboarding.disclaimerAck} />}
 
         {/* ── NAVIGATION ── */}
         <div className="flex justify-between mt-6 gap-3">
@@ -126,12 +127,37 @@ export default function OnboardingWizard() {
           )}
           <button
             onClick={goNext}
-            className="px-6 sm:px-8 py-3 bg-[#E53935] text-white rounded-xl font-semibold text-sm hover:bg-[#C62828] active:scale-[0.97] transition-all"
+            disabled={step === TOTAL_STEPS && !onboarding.disclaimerAck}
+            className="px-6 sm:px-8 py-3 bg-[#E53935] text-white rounded-xl font-semibold text-sm hover:bg-[#C62828] active:scale-[0.97] transition-all disabled:opacity-50"
           >
             {step < TOTAL_STEPS ? 'Next →' : 'Proceed to payment →'}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StepDisclaimer({ onAck, ack }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-8 space-y-5">
+      <h2 className="text-lg sm:text-xl font-bold text-slate-900">Transaction Exclusion Policy</h2>
+      <p className="text-sm text-slate-500 leading-relaxed">
+        Transactions that are excluded from reports are permanently excluded from revenue calculations and will be logged in the audit trail. This action is irreversible and should only be performed by authorised personnel.
+      </p>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 space-y-2">
+        <p className="font-semibold">Important:</p>
+        <ul className="list-disc list-inside space-y-1 text-xs">
+          <li>All exclusions are recorded with timestamp, reason, and cashier identity.</li>
+          <li>Excluded transactions are visible in the Deleted Transactions report.</li>
+          <li>GST liability on excluded amounts remains as per prevailing tax laws.</li>
+          <li>Softshape.ai is not responsible for misuse of this feature.</li>
+        </ul>
+      </div>
+      <label className="flex items-center gap-3 text-sm font-semibold text-slate-700 cursor-pointer">
+        <input type="checkbox" checked={!!ack} onChange={(e) => onAck(e.target.checked)} className="w-5 h-5 accent-[#E53935]" />
+        I acknowledge and agree to this policy
+      </label>
     </div>
   );
 }
