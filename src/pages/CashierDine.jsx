@@ -6,6 +6,7 @@ import { getTenantSections, getActiveOrders, duplicateOrder, swapTable, swapItem
 import { smartPrintKOT, smartPrintBill } from '../utils/printTemplates'
 import { useSocket } from '../hooks/useSocket'
 import { useOfflineSync } from '../hooks/useOfflineSync'
+import { usePersistentState } from '../hooks/usePersistentState'
 import { initDB, cacheOrders, getOrdersFromCache, cacheMenu, getMenuFromCache, cacheTablesForRestaurant, getTablesFromCache } from '../lib/localCache'
 import {
   offlineCreateOrder,
@@ -21,7 +22,7 @@ import toast from 'react-hot-toast'
 
 const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSections = [], handleOnlineOrders = false, onLogout }) => {
   const slug = (() => { try { const s = localStorage.getItem('saas_owner'); return s ? JSON.parse(s).slug : ''; } catch { return '' } })()
-  const [selectedTable, setSelectedTable] = useState(null)
+  const [selectedTable, setSelectedTable] = usePersistentState(`cd_selectedTable_${restaurantId}`, null)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
   const [showSwapTable, setShowSwapTable] = useState(false)
@@ -29,11 +30,11 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
   const [showMerge, setShowMerge] = useState(false)
   const [activeOrders, setActiveOrders] = useState([])
   const [menuItems, setMenuItems] = useState([])
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = usePersistentState(`cd_search_${restaurantId}`, '')
   const [loading, setLoading] = useState(true)
   const [tables, setTables] = useState([])
   const [tablesLoading, setTablesLoading] = useState(false)
-  const [activeView, setActiveView] = useState('dine-in')
+  const [activeView, setActiveView] = usePersistentState(`cd_view_${restaurantId}`, 'dine-in')
   const [showExcludeModal, setShowExcludeModal] = useState(false)
   const [excludeTarget, setExcludeTarget] = useState(null)
   const [showSplit, setShowSplit] = useState(false)

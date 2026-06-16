@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { usePersistentState } from '../hooks/usePersistentState'
 import { Check, Plus, Upload, Instagram, Facebook } from 'lucide-react'
 import { menuItems } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
+const defaultSections = [
+  { name: 'AC', tables: ['AC-1', 'AC-2', 'AC-3'] },
+  { name: 'Rooftop', tables: ['Roof-1', 'Roof-2'] },
+  { name: 'Bar', tables: ['Bar-1', 'Bar-2'] }
+]
+
 const RegisterWizard = () => {
-  const [step, setStep] = useState(1)
-  const [formData, setFormData] = useState({
+  const [step, setStep] = usePersistentState('rw_step', 1)
+  const [formData, setFormData] = usePersistentState('rw_form', {
     restaurantName: '',
     city: '',
     address: '',
@@ -18,11 +25,7 @@ const RegisterWizard = () => {
     password: '',
     confirmPassword: '',
     menuItems: [...menuItems],
-    sections: [
-      { name: 'AC', tables: ['AC-1', 'AC-2', 'AC-3'] },
-      { name: 'Rooftop', tables: ['Roof-1', 'Roof-2'] },
-      { name: 'Bar', tables: ['Bar-1', 'Bar-2'] }
-    ],
+    sections: JSON.parse(JSON.stringify(defaultSections)),
     plan: 'pro',
     instagramConnected: false,
     facebookConnected: false
@@ -87,6 +90,8 @@ const RegisterWizard = () => {
       restaurantName: formData.restaurantName
     })
     toast.success('Setup completed successfully!')
+    localStorage.removeItem('rw_step')
+    localStorage.removeItem('rw_form')
     navigate('/admin')
   }
 

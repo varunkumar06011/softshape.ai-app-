@@ -1,25 +1,36 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePersistentState } from '../hooks/usePersistentState';
 import { uploadMenuCSV, getOnboardingData, getOwner, suggestMenuItems, addMenuItem, suggestFromPDF } from './saasApi';
 import { Upload, Download, ArrowRight, ArrowLeft, Sparkles, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function MenuUploadStep() {
   const navigate = useNavigate();
-  const [file, setFile] = useState(null);
+  const [file, setFile] = usePersistentState('mu_file', null);
   const [uploading, setUploading] = useState(false);
-  const [done, setDone] = useState(false);
-  const [imported, setImported] = useState(0);
-  const [aiNames, setAiNames] = useState('');
+  const [done, setDone] = usePersistentState('mu_done', false);
+  const [imported, setImported] = usePersistentState('mu_imported', 0);
+  const [aiNames, setAiNames] = usePersistentState('mu_aiNames', '');
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [aiSuggestions, setAiSuggestions] = usePersistentState('mu_aiSuggestions', []);
   const [aiImporting, setAiImporting] = useState(false);
-  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfFile, setPdfFile] = usePersistentState('mu_pdfFile', null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfSuggestions, setPdfSuggestions] = useState([]);
+  const [pdfSuggestions, setPdfSuggestions] = usePersistentState('mu_pdfSuggestions', []);
   const [pdfImporting, setPdfImporting] = useState(false);
   const owner = getOwner();
   const slug = owner?.slug;
+
+  const clearState = () => {
+    localStorage.removeItem('mu_file');
+    localStorage.removeItem('mu_done');
+    localStorage.removeItem('mu_imported');
+    localStorage.removeItem('mu_aiNames');
+    localStorage.removeItem('mu_aiSuggestions');
+    localStorage.removeItem('mu_pdfFile');
+    localStorage.removeItem('mu_pdfSuggestions');
+  };
 
   const downloadTemplate = () => {
     const csv = `item_name,category,price,type,is_veg,variants
@@ -124,7 +135,7 @@ Kingfisher Beer,Beer,120,LIQUOR,false,`;
           <h2 className="text-2xl font-black text-[#1A1A1A] mb-2">Menu uploaded!</h2>
           <p className="text-sm text-[#5C5C5C] mb-8">{imported} items imported successfully.</p>
           <button
-            onClick={() => navigate(slug ? `/tenant/${slug}` : '/admin')}
+            onClick={() => { clearState(); navigate(slug ? `/tenant/${slug}` : '/admin'); }}
             className="w-full py-4 bg-[#E53935] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-[#B71C1C] active:scale-[0.98] transition-all inline-flex items-center justify-center gap-2"
           >
             Go to your dashboard <ArrowRight className="w-4 h-4" />
@@ -246,7 +257,7 @@ Kingfisher Beer,Beer,120,LIQUOR,false,`;
 
             <div className="md:col-span-3 flex flex-col items-center justify-center border-2 border-dashed border-[#FFCDD2] rounded-[32px] p-6 bg-white/60 text-center">
               <p className="text-xs text-[#5C5C5C] mb-3">You can upload the menu later from your admin dashboard</p>
-              <button onClick={() => navigate(slug ? `/tenant/${slug}` : '/admin')}
+              <button onClick={() => { clearState(); navigate(slug ? `/tenant/${slug}` : '/admin'); }}
                 className="px-6 py-3 border-2 border-[#FFCDD2] text-[#5C5C5C] rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-[#FFF5F5] transition-all"
               >
                 Skip for now →
