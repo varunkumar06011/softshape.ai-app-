@@ -202,6 +202,46 @@ export async function getReportSummary(restaurantId, from, to) {
   return json;
 }
 
+// ── Inventory ──
+export async function getInventory(restaurantId, slug) {
+  const res = await fetch(`${SAAS_API}/api/inventory?restaurantId=${restaurantId}`, { headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch inventory');
+  return json;
+}
+
+export async function createInventoryItem(data, slug) {
+  const res = await fetch(`${SAAS_API}/api/inventory`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(data) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to create inventory item');
+  return json;
+}
+
+export async function updateInventoryItem(id, data, slug) {
+  const res = await fetch(`${SAAS_API}/api/inventory/${id}`, { method: 'PATCH', headers: tenantAuthHeader(slug), body: JSON.stringify(data) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to update inventory item');
+  return json;
+}
+
+export async function deleteInventoryItem(id, slug) {
+  const res = await fetch(`${SAAS_API}/api/inventory/${id}`, { method: 'DELETE', headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to delete inventory item');
+  return json;
+}
+
+// ── Captain Stats ──
+export async function getCaptainStats(restaurantId, slug, from, to) {
+  const qs = new URLSearchParams({ restaurantId });
+  if (from) qs.set('from', from);
+  if (to) qs.set('to', to);
+  const res = await fetch(`${SAAS_API}/api/admin/captain-stats?${qs}`, { headers: tenantAuthHeader(slug) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch captain stats');
+  return json;
+}
+
 export async function getDailyReport(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
   const res = await fetch(`${SAAS_API}/api/reports/daily${qs}`, { headers: tenantAuthHeader(restaurantId) });
