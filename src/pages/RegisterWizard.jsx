@@ -92,25 +92,25 @@ const RegisterWizard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-6">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-2 sm:mb-4">
             {steps.map((s, idx) => (
-              <div key={idx} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  idx + 1 < step ? 'bg-brand text-white' : 
-                  idx + 1 === step ? 'bg-brand text-white' : 
+              <div key={idx} className="flex items-center flex-1">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-base shrink-0 ${
+                  idx + 1 < step ? 'bg-brand text-white' :
+                  idx + 1 === step ? 'bg-brand text-white' :
                   'bg-gray-200 text-gray-500'
                 }`}>
-                  {idx + 1 < step ? <Check className="w-5 h-5" /> : idx + 1}
+                  {idx + 1 < step ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : idx + 1}
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className={`w-full h-1 mx-2 ${idx + 1 < step ? 'bg-brand' : 'bg-gray-200'}`} />
+                  <div className={`flex-1 h-1 mx-1 sm:mx-2 ${idx + 1 < step ? 'bg-brand' : 'bg-gray-200'}`} />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-sm text-gray-600">
+          <div className="hidden sm:flex justify-between text-sm text-gray-600">
             {steps.map((s, idx) => (
               <span key={idx} className={idx + 1 === step ? 'font-semibold text-brand' : ''}>
                 {s.name}
@@ -341,7 +341,7 @@ const RegisterWizard = () => {
         {step === 5 && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
             <h2 className="text-xl font-bold mb-6">Choose Plan & Connect Social</h2>
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div
                 onClick={() => setFormData({ ...formData, plan: 'basic' })}
                 className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${
@@ -366,10 +366,10 @@ const RegisterWizard = () => {
 
             <div className="mb-6">
               <h3 className="font-semibold mb-3">Connect Social Media</h3>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <button
                   onClick={() => setFormData({ ...formData, instagramConnected: true })}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-colors ${
                     formData.instagramConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                   }`}
                 >
@@ -378,7 +378,7 @@ const RegisterWizard = () => {
                 </button>
                 <button
                   onClick={() => setFormData({ ...formData, facebookConnected: true })}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-colors ${
                     formData.facebookConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                   }`}
                 >

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import SplashScreen from './components/SplashScreen'
 import LandingPage from './pages/LandingPage'
 import RegisterWizard from './pages/RegisterWizard'
 import LoginPage from './pages/LoginPage'
@@ -40,8 +41,9 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
+        <SplashScreen>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/register-old" element={<RegisterWizard />} />
           <Route path="/login" element={<LoginPage />} />
@@ -105,7 +107,8 @@ function App() {
           <Route path="/print-station" element={<PrintStation />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </SplashScreen>
       </BrowserRouter>
     </AuthProvider>
   )

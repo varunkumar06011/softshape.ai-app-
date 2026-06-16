@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { X, CreditCard, Smartphone, Banknote } from 'lucide-react'
 
 const BillModal = ({ order, onClose, onConfirmPayment }) => {
-  const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.qty), 0)
-  const gst = Math.round(subtotal * 0.05)
-  const total = subtotal + gst
+  const subtotal = order.subtotal || order.items.reduce((sum, item) => sum + (item.price * item.qty), 0)
+  const cgst = order.cgst || Math.round(subtotal * 0.025 * 100) / 100
+  const sgst = order.sgst || Math.round(subtotal * 0.025 * 100) / 100
+  const total = order.total || subtotal + cgst + sgst
   const [paymentMode, setPaymentMode] = useState('cash')
 
   return (
@@ -33,8 +34,12 @@ const BillModal = ({ order, onClose, onConfirmPayment }) => {
             <span>₹{subtotal}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">GST (5%)</span>
-            <span>₹{gst}</span>
+            <span className="text-gray-600">CGST (2.5%)</span>
+            <span>₹{cgst}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-600">SGST (2.5%)</span>
+            <span>₹{sgst}</span>
           </div>
           <div className="flex justify-between font-bold text-lg border-t border-gray-200 pt-2">
             <span>Total</span>

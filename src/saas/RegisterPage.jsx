@@ -26,7 +26,7 @@ export default function RegisterPage() {
     if (!form.phone.trim()) e.phone = 'Phone number is required';
     else if (!/^\d{10}$/.test(form.phone)) e.phone = 'Enter a valid 10-digit Indian mobile number';
     if (!form.password) e.password = 'Password is required';
-    else if (form.password.length < 6) e.password = 'Minimum 6 characters';
+    else if (form.password.length < 8) e.password = 'Minimum 8 characters';
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     if (!form.restaurantName.trim()) e.restaurantName = 'Restaurant name is required';
     if (!form.city.trim()) e.city = 'City is required';
