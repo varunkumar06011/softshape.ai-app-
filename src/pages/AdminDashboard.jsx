@@ -3,10 +3,10 @@ import { useParams } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Sidebar from '../components/Sidebar'
 import StatCard from '../components/StatCard'
-import { getReportSummary, getActiveOrders, getInventory, createInventoryItem, updateInventoryItem, deleteInventoryItem, getCaptainStats } from '../saas/saasApi'
+import { getReportSummary, getActiveOrders, getInventory, createInventoryItem, updateInventoryItem, deleteInventoryItem, getCaptainStats, getOnlineOrderReport, syncOnlineOrders } from '../saas/saasApi'
 import { useSocket } from '../hooks/useSocket'
 import { tables } from '../data/mockData'
-import { DollarSign, Table, ShoppingCart, FileText, Printer, Bell, Package, Plus, UserCheck } from 'lucide-react'
+import { DollarSign, Table, ShoppingCart, FileText, Printer, Bell, Package, Plus, UserCheck, Globe, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const AdminDashboard = ({ restaurantId: propRestaurantId, onLogout }) => {
@@ -23,6 +23,8 @@ const AdminDashboard = ({ restaurantId: propRestaurantId, onLogout }) => {
   const [captainStats, setCaptainStats] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [onlineReport, setOnlineReport] = useState(null)
+  const [syncingOnline, setSyncingOnline] = useState(false)
 
   const session = (() => { try { const s = localStorage.getItem(`tenant_${urlSlug}_session`) || localStorage.getItem('saas_owner'); return s ? JSON.parse(s) : null } catch { return null } })()
   const restaurantId = propRestaurantId || session?.restaurantId || session?.slug || ''
@@ -86,11 +88,35 @@ const AdminDashboard = ({ restaurantId: propRestaurantId, onLogout }) => {
     }
   }
 
+  const fetchOnlineReport = async () => {
+    if (!restaurantId) return
+    try {
+      const report = await getOnlineOrderReport(restaurantId)
+      setOnlineReport(report)
+    } catch (err) {
+      // silently fail
+    }
+  }
+
+  const handleSyncOnline = async () => {
+    if (!restaurantId) return
+    setSyncingOnline(true)
+    try {
+      await syncOnlineOrders(restaurantId)
+      await fetchOnlineReport()
+      toast.success('Online orders synced')
+    } catch (err) {
+      toast.error(err.message || 'Sync failed')
+    } finally {
+      setSyncingOnline(false)
+    }
+  }
+
   useSocket(restaurantId, {
     onStockUpdate: () => { if (activeTab === 'inventory') fetchInventory() }
   })
 
-  useEffect(() => { fetchData(); fetchCaptainStats() }, [restaurantId, slug])
+  useEffect(() => { fetchData(); fetchCaptainStats(); fetchOnlineReport() }, [restaurantId, slug])
   useEffect(() => { if (activeTab === 'inventory') fetchInventory() }, [activeTab, restaurantId, slug])
 
   const today = new Date().toISOString().slice(0, 10)
@@ -189,6 +215,37 @@ const AdminDashboard = ({ restaurantId: propRestaurantId, onLogout }) => {
                   <StatCard icon={Table} label="Active Tables" value={`${activeTableCount}/${tables.length}`} />
                   <StatCard icon={ShoppingCart} label="Orders Today" value={String(todayOrders.length)} />
                   <StatCard icon={FileText} label="Pending KOTs" value={String(pendingKOTs)} />
+                </div>
+
+                {/* Online Orders */}
+                <div className="bg-white rounded-2xl p-4 lg:p-6 shadow-sm border border-gray-200 mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-orange-500" />
+                      <h2 className="text-lg font-semibold">Online Orders</h2>
+                    </div>
+                    <button onClick={handleSyncOnline} disabled={syncingOnline} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg text-xs font-semibold hover:bg-orange-100 transition-colors disabled:opacity-50">
+                      <RefreshCw className={`w-3.5 h-3.5 ${syncingOnline ? 'animate-spin' : ''}`} />
+                      {syncingOnline ? 'Syncing...' : 'Sync Now'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-orange-50 rounded-xl p-4 text-center">
+                      <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wider mb-1">Swiggy</p>
+                      <p className="text-xl font-bold text-slate-900">₹{Math.round(onlineReport?.SWIGGY?.total || 0).toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-slate-500">{onlineReport?.SWIGGY?.count || 0} orders</p>
+                    </div>
+                    <div className="bg-red-50 rounded-xl p-4 text-center">
+                      <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider mb-1">Zomato</p>
+                      <p className="text-xl font-bold text-slate-900">₹{Math.round(onlineReport?.ZOMATO?.total || 0).toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-slate-500">{onlineReport?.ZOMATO?.count || 0} orders</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-4 text-center">
+                      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Combined</p>
+                      <p className="text-xl font-bold text-slate-900">₹{Math.round(onlineReport?.combined?.total || 0).toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-slate-500">{onlineReport?.combined?.count || 0} orders</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Captain Performance */}

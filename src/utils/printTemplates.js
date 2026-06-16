@@ -130,6 +130,85 @@ export function buildBillBytes(billData) {
   return new Uint8Array(bytes);
 }
 
+export function generateKOT(data) {
+  const { kotNumber, tableName, section, captainName, items, createdAt } = data;
+  const timeStr = createdAt ? new Date(createdAt).toLocaleTimeString('en-IN') : new Date().toLocaleTimeString('en-IN');
+  const lines = [];
+  lines.push(`KOT #${kotNumber || '-'}`);
+  lines.push(`Table: ${tableName || '-'}  Section: ${section || '-'}`);
+  lines.push(`Captain: ${captainName || '-'}  ${timeStr}`);
+  lines.push('════════════════════');
+  for (const item of items || []) {
+    const prefix = item.menuType === 'LIQUOR' ? '[BAR] ' : '';
+    lines.push(`${prefix}${item.qty || 1}x  ${(item.name || '').toUpperCase()}`);
+    if (item.note) lines.push(`  → ${item.note}`);
+  }
+  lines.push('════════════════════');
+  lines.push('-- KITCHEN COPY --');
+  return lines.join('\n');
+}
+
+export function generateBill(data, template) {
+  const { billNumber, tableName, section, captainName, items, subtotal, cgst, sgst, total, paymentMode, restaurantName, restaurantAddress, gstin, barGstin, createdAt, stationType } = data;
+  const timeStr = createdAt ? new Date(createdAt).toLocaleTimeString('en-IN') : new Date().toLocaleTimeString('en-IN');
+  const dateStr = createdAt ? new Date(createdAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+  const effectiveGstin = (stationType === 'BAR' || stationType === 'bar') ? (barGstin || gstin) : gstin;
+
+  const lines = [];
+
+  if (template === 'CLASSIC') {
+    lines.push(restaurantName || 'Restaurant');
+    if (restaurantAddress) lines.push(restaurantAddress);
+    if (effectiveGstin) lines.push(`GSTIN: ${effectiveGstin}`);
+    lines.push('─────────────────────');
+    lines.push(`Bill No: ${billNumber || '-'}  Date: ${dateStr}  Time: ${timeStr}`);
+    lines.push('─────────────────────');
+    for (const item of items || []) {
+      const amt = (item.price * item.qty).toFixed(2);
+      lines.push(`${(item.name || '').padEnd(18)} x${item.qty}  ₹${amt.padStart(8)}`);
+    }
+    lines.push('─────────────────────');
+    lines.push(`Subtotal           ₹${(subtotal || 0).toFixed(2).padStart(8)}`);
+    lines.push(`CGST 2.5%          ₹${(cgst || 0).toFixed(2).padStart(8)}`);
+    lines.push(`SGST 2.5%          ₹${(sgst || 0).toFixed(2).padStart(8)}`);
+    lines.push(`TOTAL              ₹${(total || 0).toFixed(2).padStart(8)}`);
+    lines.push('─────────────────────');
+    if (paymentMode) lines.push(`Payment: ${paymentMode.toUpperCase()}`);
+    lines.push('Thank you! Visit again');
+  } else if (template === 'MINIMAL') {
+    lines.push('─────────────────────');
+    for (const item of items || []) {
+      const amt = (item.price * item.qty).toFixed(2);
+      lines.push(`${item.name || ''} x${item.qty}  ₹${amt}`);
+    }
+    lines.push('─────────────────────');
+    lines.push(`Total  ₹${(total || 0).toFixed(2)}`);
+    lines.push('─────────────────────');
+  } else if (template === 'HOTEL') {
+    lines.push(restaurantName || 'Restaurant');
+    if (restaurantAddress) lines.push(restaurantAddress);
+    if (effectiveGstin) lines.push(`GSTIN: ${effectiveGstin}`);
+    lines.push('─────────────────────');
+    lines.push(`Bill No: ${billNumber || '-'}  Date: ${dateStr}  Time: ${timeStr}`);
+    lines.push(`Table: ${tableName || '-'}  Covers: ___`);
+    lines.push('─────────────────────');
+    for (const item of items || []) {
+      const amt = (item.price * item.qty).toFixed(2);
+      lines.push(`${(item.name || '').padEnd(18)} x${item.qty}  ₹${amt.padStart(8)}`);
+    }
+    lines.push('─────────────────────');
+    lines.push(`Subtotal           ₹${(subtotal || 0).toFixed(2).padStart(8)}`);
+    lines.push(`CGST 2.5%          ₹${(cgst || 0).toFixed(2).padStart(8)}`);
+    lines.push(`SGST 2.5%          ₹${(sgst || 0).toFixed(2).padStart(8)}`);
+    lines.push(`TOTAL              ₹${(total || 0).toFixed(2).padStart(8)}`);
+    lines.push('─────────────────────');
+    if (paymentMode) lines.push(`Payment: ${paymentMode.toUpperCase()}`);
+    lines.push('Thank you! Visit again');
+  }
+
+  return lines.join('\n');
+}
+
 export async function smartPrintKOT(kotData) {
   if (window.electronAPI?.print) {
     const bytes = buildKOTBytes(kotData);

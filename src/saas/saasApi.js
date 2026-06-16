@@ -194,11 +194,39 @@ export async function getOnlineOrders(restaurantId) {
   return json;
 }
 
+export async function syncOnlineOrders(restaurantId) {
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${currentBase}/api/urbanpiper/orders/${restaurantId}/sync`, { headers: token ? { Authorization: `Bearer ${token}` } : h });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Sync failed');
+  return json;
+}
+
 export async function updateOnlineOrderStatus(orderId, status) {
   const token = localStorage.getItem('saas_token');
   const res = await fetch(`${currentBase}/api/urbanpiper/orders/${orderId}/status`, { method: 'PATCH', headers: token ? { ...h, Authorization: `Bearer ${token}` } : h, body: JSON.stringify({ status }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to update order');
+  return json;
+}
+
+export async function getOnlineOrderReport(restaurantId, from, to) {
+  const qs = new URLSearchParams();
+  if (from) qs.set('from', from);
+  if (to) qs.set('to', to);
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${currentBase}/api/admin/online-order-report/${restaurantId}?${qs}`, { headers: token ? { Authorization: `Bearer ${token}` } : h });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch online order report');
+  return json;
+}
+
+export async function saveBillDetails(data) {
+  const res = await fetch(`${currentBase}/api/onboarding/bill-details`, {
+    method: 'PATCH', headers: authHeader(), body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to save bill details');
   return json;
 }
 

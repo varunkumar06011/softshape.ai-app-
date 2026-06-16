@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, CASHIER_TYPES } from './plans';
-import { getOnboardingData, saveOnboardingStep, getOwner, updateBillTemplate } from './saasApi';
-import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft } from 'lucide-react';
+import { getOnboardingData, saveOnboardingStep, getOwner, updateBillTemplate, saveBillDetails, suggestFromPDF } from './saasApi';
+import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function getPresetsForType(restaurantType) {
@@ -49,7 +49,7 @@ export default function OnboardingWizard() {
   const inputClass =
     'w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-[#E53935] focus:ring-2 focus:ring-red-100 transition-all placeholder:text-slate-400';
 
-  const stepLabels = ['Details', 'Floor plan', 'Menu', 'Staff', 'Printers', 'Plan', 'Disclaimer'];
+  const stepLabels = ['Details', 'Floor plan', 'Menu', 'Plan', 'Staff', 'Printers', 'Disclaimer'];
 
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4">
@@ -108,9 +108,9 @@ export default function OnboardingWizard() {
         {step === 1 && <Step1 form={onboarding.restaurant || {}} onChange={(v) => persist('restaurant', v)} inputClass={inputClass} />}
         {step === 2 && <Step2 form={onboarding.sections || []} onChange={(v) => persist('sections', v)} />}
         {step === 3 && <Step3 form={onboarding.menu || []} onChange={(v) => persist('menu', v)} />}
-        {step === 4 && <Step4 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onboarding={onboarding} />}
-        {step === 5 && <StepPrinter onboarding={onboarding} persist={persist} />}
-        {step === 6 && <Step5 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onProceed={goNext} />}
+        {step === 4 && <Step5 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onProceed={goNext} />}
+        {step === 5 && <Step4 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onboarding={onboarding} persist={persist} />}
+        {step === 6 && <StepPrinter onboarding={onboarding} persist={persist} />}
         {step === 7 && <StepDisclaimer onAck={() => persist('disclaimerAck', true)} ack={onboarding.disclaimerAck} />}
 
         {/* ── NAVIGATION ── */}
@@ -193,6 +193,7 @@ function Step1({ form, onChange, inputClass }) {
           <input type="text" placeholder="Zomato Outlet ID (e.g. 98765)" value={f.zomatoOutletId} onChange={(e) => set('zomatoOutletId', e.target.value)} className={inputClass} />
         </div>
         <p className="text-xs text-slate-400">Get these from your Swiggy/Zomato restaurant dashboard</p>
+        <p className="text-xs text-slate-400">These IDs let us pull your Swiggy and Zomato orders directly into the Parcel Counter cashier dashboard and admin reports.</p>
         <div className="border border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50">
           <input type="file" accept="image/*" className="hidden" id="logoUpload" onChange={(e) => set('logo', e.target.files[0]?.name || '')} />
           <label htmlFor="logoUpload" className="cursor-pointer text-sm font-bold text-slate-500">
@@ -289,6 +290,8 @@ function Step3({ form, onChange }) {
   const [tab, setTab] = useState('csv');
   const items = form && form.length ? form : [];
   const [newItem, setNewItem] = useState({ name: '', category: '', price: '', type: 'FOOD', isVeg: true, variants: '' });
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const addItem = () => {
     if (!newItem.name || !newItem.price) return;
@@ -330,6 +333,7 @@ Kingfisher Beer,Beer,120,LIQUOR,false,`;
       <div className="flex gap-2 mb-6">
         <button onClick={() => setTab('csv')} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'csv' ? 'bg-[#E53935] text-white' : 'bg-red-50 text-slate-500'}`}>Upload CSV</button>
         <button onClick={() => setTab('manual')} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'manual' ? 'bg-[#E53935] text-white' : 'bg-red-50 text-slate-500'}`}>Add manually</button>
+        <button onClick={() => setTab('pdf')} className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'pdf' ? 'bg-[#E53935] text-white' : 'bg-red-50 text-slate-500'}`}>Scan Menu PDF</button>
       </div>
 
       {tab === 'csv' && (
@@ -385,11 +389,68 @@ Kingfisher Beer,Beer,120,LIQUOR,false,`;
           </div>
         </div>
       )}
+
+      {tab === 'pdf' && (
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center bg-slate-50">
+            <input type="file" accept="application/pdf" className="hidden" id="pdfUpload" onChange={(e) => {
+              const file = e.target.files[0];
+              if (file) { setPdfFile(file); toast.success(`Selected: ${file.name}`); }
+            }} />
+            <label htmlFor="pdfUpload" className="cursor-pointer flex flex-col items-center gap-2">
+              <Upload className="w-8 h-8 text-[#E53935]" />
+              <span className="text-sm font-bold text-slate-500">Drop PDF here or click to upload</span>
+              <span className="text-xs text-slate-400">Works with: price lists, printed menus, multi-page menus with images (like VGrand)</span>
+            </label>
+          </div>
+          {pdfFile && (
+            <button
+              onClick={async () => {
+                setPdfLoading(true);
+                try {
+                  const res = await suggestFromPDF(pdfFile);
+                  const suggestions = res.suggestions || res.items || [];
+                  if (suggestions.length > 0) {
+                    const mapped = suggestions.map((s) => ({
+                      name: s.itemName || s.name,
+                      category: s.category || 'General',
+                      price: Number(s.price || s.suggestedPrice || 0),
+                      type: (s.menuType || 'FOOD').toUpperCase(),
+                      isVeg: s.isVeg === true || s.isVeg === 'true',
+                      variants: '',
+                    }));
+                    onChange([...items, ...mapped]);
+                    setTab('manual');
+                    toast.success(`Added ${mapped.length} items from PDF`);
+                  } else {
+                    toast.error('No items found in PDF');
+                  }
+                } catch (err) {
+                  toast.error('Could not read menu. Please try CSV upload instead.');
+                } finally {
+                  setPdfLoading(false);
+                }
+              }}
+              disabled={pdfLoading}
+              className="w-full py-3 bg-[#E53935] text-white rounded-xl font-semibold text-sm hover:bg-[#C62828] active:scale-[0.97] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {pdfLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analysing your menu...
+                </>
+              ) : (
+                'Analyse Menu'
+              )}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function Step4({ plan, onChangePlan, onboarding }) {
+function Step4({ plan, onChangePlan, onboarding, persist }) {
   const planData = PLANS.find((p) => p.id === plan) || PLANS[1];
   const stationsCount = planData.cashiers;
   const captainsCount = planData.captains;
@@ -403,26 +464,48 @@ function Step4({ plan, onChangePlan, onboarding }) {
   const captains = onboarding.captains || Array.from({ length: captainsCount }, (_, i) => ({ name: '', pin: '' }));
   const admin = onboarding.admin || { username: (getOwner()?.email) || '', password: '' };
 
+  useEffect(() => {
+    const currentStations = onboarding.stations || [];
+    if (currentStations.length !== stationsCount) {
+      const resized = Array.from({ length: stationsCount }, (_, i) =>
+        currentStations[i] || { name: '', type: 'dining', username: '', password: '' }
+      );
+      persist('stations', resized);
+    }
+    const currentCaptains = onboarding.captains || [];
+    if (currentCaptains.length !== captainsCount) {
+      const resized = Array.from({ length: captainsCount }, (_, i) =>
+        currentCaptains[i] || { name: '', pin: '' }
+      );
+      persist('captains', resized);
+    }
+  }, [stationsCount, captainsCount]);
+
   const updateStation = (idx, k, v) => {
     const s = [...stations];
     s[idx] = { ...s[idx], [k]: v };
-    saveOnboardingStep('stations', s);
+    persist('stations', s);
   };
   const updateCaptain = (idx, k, v) => {
     const c = [...captains];
     c[idx] = { ...c[idx], [k]: v };
-    saveOnboardingStep('captains', c);
+    persist('captains', c);
   };
   const updateAdmin = (k, v) => {
     const a = { ...admin, [k]: v };
-    saveOnboardingStep('admin', a);
+    persist('admin', a);
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 border border-slate-200 p-5 sm:p-8 space-y-7">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 mb-1">Set up your cashier stations</h2>
-        <p className="text-sm text-slate-500">Your {planData.name} plan includes {stationsCount} station{stationsCount > 1 ? 's' : ''}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 mb-1">Set up your cashier stations</h2>
+          <p className="text-sm text-slate-500">Your {planData.name} plan includes {stationsCount} station{stationsCount > 1 ? 's' : ''}</p>
+        </div>
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-[#E53935] border border-red-100">
+          {planData.name} Plan
+        </span>
       </div>
 
       <div className="space-y-4">
@@ -482,6 +565,9 @@ function StepPrinter({ onboarding, persist }) {
   const [tested, setTested] = useState({ kot: false, bar: false, bill: false });
   const [selectedTemplate, setSelectedTemplate] = useState(onboarding.billTemplate || 'CLASSIC');
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const owner = getOwner();
+  const isBarRestaurant = owner?.restaurantType === 'Bar & Restaurant';
+  const billDetails = onboarding.billDetails || { name: '', address: '', gstin: '', barGstin: '' };
 
   const save = (kotVal, barVal, billVal) => {
     persist('printers', { kotIp: kotVal, barIp: barVal, billIp: billVal });
@@ -508,6 +594,24 @@ function StepPrinter({ onboarding, persist }) {
       setSavingTemplate(false);
     }
   };
+
+  const updateBillDetail = (key, value) => {
+    const next = { ...billDetails, [key]: value };
+    persist('billDetails', next);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!billDetails.name && !billDetails.address && !billDetails.gstin && !billDetails.barGstin) return;
+      saveBillDetails({
+        billRestaurantName: billDetails.name,
+        billAddress: billDetails.address,
+        billGstin: billDetails.gstin,
+        barGstin: billDetails.barGstin,
+      }).catch(() => {});
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [billDetails.name, billDetails.address, billDetails.gstin, billDetails.barGstin]);
 
   const printers = [
     {
@@ -681,6 +785,33 @@ function StepPrinter({ onboarding, persist }) {
               </div>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Bill header details */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 border border-slate-200 p-5 sm:p-7">
+        <h3 className="text-base font-bold text-slate-900 mb-4">Bill header details</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Restaurant name for bills *</label>
+            <input type="text" value={billDetails.name} onChange={(e) => updateBillDetail('name', e.target.value)} placeholder="e.g. VGrand Restaurant" className="w-full h-11 rounded-xl border-2 border-slate-200 bg-slate-50 px-4 text-sm font-bold outline-none focus:border-[#E53935] focus:bg-white transition-all" />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Address for bills *</label>
+            <textarea value={billDetails.address} onChange={(e) => updateBillDetail('address', e.target.value)} placeholder="Full address as it should appear on bills" rows={2} className="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none focus:border-[#E53935] focus:bg-white transition-all resize-none" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">GST (Restaurant / Food)</label>
+              <input type="text" value={billDetails.gstin} onChange={(e) => updateBillDetail('gstin', e.target.value)} placeholder="e.g. 29ABCDE1234F1Z5" className="w-full h-11 rounded-xl border-2 border-slate-200 bg-slate-50 px-4 text-sm font-bold outline-none focus:border-[#E53935] focus:bg-white transition-all" />
+            </div>
+            {isBarRestaurant && (
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">GST (Bar / Liquor)</label>
+                <input type="text" value={billDetails.barGstin} onChange={(e) => updateBillDetail('barGstin', e.target.value)} placeholder="e.g. 29ABCDE1234F1Z6" className="w-full h-11 rounded-xl border-2 border-slate-200 bg-slate-50 px-4 text-sm font-bold outline-none focus:border-[#E53935] focus:bg-white transition-all" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

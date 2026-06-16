@@ -1,6 +1,8 @@
 import { X, Printer } from 'lucide-react'
+import { generateKOT } from '../utils/printTemplates'
 
 const KOTPreview = ({ kotData, onClose, onConfirm }) => {
+  const text = generateKOT(kotData)
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md">
@@ -11,16 +13,8 @@ const KOTPreview = ({ kotData, onClose, onConfirm }) => {
           </button>
         </div>
 
-        <div className="bg-gray-50 rounded-xl p-4 mb-4">
-          <div className="flex justify-between mb-2">
-            <span className="font-semibold">Table: {kotData.table}</span>
-            <span className="text-sm text-gray-500">{kotData.time}</span>
-          </div>
-          <div className="border-t border-gray-200 pt-2">
-            {kotData.items.map((item, idx) => (
-              <div key={idx} className="text-sm py-1">{item}</div>
-            ))}
-          </div>
+        <div className="bg-gray-50 rounded-xl p-4 mb-4 font-mono text-sm whitespace-pre-line leading-relaxed">
+          {text}
         </div>
 
         <button

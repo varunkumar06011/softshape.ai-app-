@@ -51,6 +51,6 @@ export const PLANS = [
 
 export const CASHIER_TYPES = [
   { id: 'dining', label: 'Dining cashier', desc: 'Food menu only — dine-in tables', menuFilter: 'FOOD' },
-  { id: 'bar', label: 'Bar cashier', desc: 'Liquor menu only — bar tables', menuFilter: 'LIQUOR' },
-  { id: 'parcel', label: 'Parcel counter', desc: 'Walk-in takeaway — full menu', menuFilter: 'BOTH' },
+  { id: 'bar', label: 'Bar cashier', desc: 'Food + Liquor — bar tables', menuFilter: 'BOTH' },
+  { id: 'parcel', label: 'Parcel counter', desc: 'Walk-in takeaway & online orders — full menu', menuFilter: 'BOTH' },
 ];

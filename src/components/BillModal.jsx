@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, CreditCard, Smartphone, Banknote, Send } from 'lucide-react'
 import { sendDigitalBill } from '../saas/saasApi'
+import { generateBill } from '../utils/printTemplates'
 import toast from 'react-hot-toast'
 
 const BillModal = ({ order, onClose, onConfirmPayment }) => {
@@ -64,6 +65,23 @@ const BillModal = ({ order, onClose, onConfirmPayment }) => {
               <span>₹{item.price * item.qty}</span>
             </div>
           ))}
+        </div>
+
+        <div className="bg-gray-50 rounded-xl p-3 mb-4 font-mono text-xs whitespace-pre-line leading-relaxed overflow-x-auto">
+          {generateBill({
+            billNumber: order.billNumber,
+            tableName: order.tableName,
+            section: order.section,
+            items: order.items,
+            subtotal, cgst, sgst, total,
+            paymentMode,
+            restaurantName: order.restaurantName,
+            restaurantAddress: order.restaurantAddress,
+            gstin: order.gstin,
+            barGstin: order.barGstin,
+            createdAt: order.createdAt,
+            stationType: order.stationType,
+          }, order.billTemplate || 'CLASSIC')}
         </div>
 
         <div className="space-y-2 mb-4">
