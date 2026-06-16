@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Sidebar from '../components/Sidebar'
-import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, uploadMenuItemImage, getTodaysSpecials, suggestMenuItems, getTenantSections } from '../saas/saasApi'
-import { Search, Plus, X, Pencil, Camera, Star, ArrowUpDown, Check, Trash2, Sparkles } from 'lucide-react'
+import { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, uploadMenuItemImage, getTodaysSpecials, suggestMenuItems, getTenantSections, suggestFromPDF } from '../saas/saasApi'
+import { Search, Plus, X, Pencil, Camera, Star, ArrowUpDown, Check, Trash2, Sparkles, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TABS = [
@@ -56,6 +56,12 @@ export default function MenuManagement() {
   const fileInputRef = useRef(null)
 
   const [sections, setSections] = useState([])
+
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [pdfFile, setPdfFile] = useState(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfSuggestions, setPdfSuggestions] = useState([])
+  const [pdfImporting, setPdfImporting] = useState(false)
 
   useEffect(() => {
     if (!restaurantId) return
@@ -178,15 +184,55 @@ export default function MenuManagement() {
     }
   }
 
+  const handlePdfParse = async () => {
+    if (!pdfFile) return
+    setPdfLoading(true)
+    try {
+      const { suggestions } = await suggestFromPDF(pdfFile)
+      setPdfSuggestions(suggestions || [])
+      toast.success(`Parsed ${suggestions?.length || 0} items from PDF`)
+    } catch (err) {
+      toast.error(err.message || 'PDF parsing failed')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  const handlePdfImport = async () => {
+    setPdfImporting(true)
+    let count = 0
+    for (const s of pdfSuggestions) {
+      try {
+        await addMenuItem({
+          itemName: s.itemName, category: s.category, price: s.price || s.suggestedPrice,
+          isVeg: s.isVeg, menuType: s.menuType, station: s.station,
+          specialNote: s.description,
+        })
+        count++
+      } catch {}
+    }
+    setPdfImporting(false)
+    setShowPdfModal(false)
+    setPdfFile(null)
+    setPdfSuggestions([])
+    fetchItems()
+    toast.success(`Imported ${count} items`)
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
       <div className="flex-1 p-4 pt-16 lg:pt-8 lg:p-8 lg:ml-64">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h1 className="text-2xl font-bold">Menu Management</h1>
-          <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-xl hover:bg-brand-dark transition-colors">
-            <Plus className="w-4 h-4" /> Add Item
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowPdfModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+              <FileText className="w-4 h-4" /> Upload PDF
+            </button>
+            <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-xl hover:bg-brand-dark transition-colors">
+              <Plus className="w-4 h-4" /> Add Item
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -376,6 +422,67 @@ export default function MenuManagement() {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) { setImagePreview(URL.createObjectURL(f)); handleImageSelect(f, showImageModal.id) } }} />
             {uploadingImage && <p className="text-center text-sm text-gray-500 mt-3">Uploading...</p>}
+          </div>
+        </div>
+      )}
+
+      {/* PDF Upload Modal */}
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" onClick={() => { if (!pdfImporting) setShowPdfModal(false) }}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-lg">Upload PDF Menu</h3>
+              <button onClick={() => { if (!pdfImporting) { setShowPdfModal(false); setPdfFile(null); setPdfSuggestions([]) } }} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {pdfSuggestions.length === 0 ? (
+              <>
+                <p className="text-sm text-gray-500 mb-4">Upload a PDF menu. AI will extract items, prices, and categories.</p>
+                <div className="border-2 border-dashed border-blue-200 rounded-xl p-8 text-center mb-4 bg-blue-50/30">
+                  <FileText className="w-10 h-10 text-blue-500 mx-auto mb-3" />
+                  <input type="file" accept="application/pdf" className="hidden" id="mgmtPdf" onChange={(e) => setPdfFile(e.target.files[0])} />
+                  <label htmlFor="mgmtPdf" className="block cursor-pointer text-sm font-bold text-blue-600 hover:underline mb-2">
+                    {pdfFile ? pdfFile.name : 'Click to select PDF'}
+                  </label>
+                  <p className="text-xs text-gray-400">PDF files only, up to 10MB</p>
+                </div>
+                {pdfFile && (
+                  <button onClick={handlePdfParse} disabled={pdfLoading}
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {pdfLoading ? <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {pdfLoading ? 'Parsing...' : 'Parse with AI'}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-3">{pdfSuggestions.length} items found. Review before importing.</p>
+                <div className="max-h-60 overflow-y-auto space-y-2 mb-4 border border-gray-200 rounded-xl p-2">
+                  {pdfSuggestions.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 text-xs">
+                      <span className="font-medium flex-1 truncate">{s.itemName}</span>
+                      <span className="text-gray-500 w-20 truncate">{s.category}</span>
+                      <span className="font-bold w-10 text-right">Rs.{s.price || s.suggestedPrice}</span>
+                      <span className={`w-6 text-center text-[10px] font-bold rounded ${s.isVeg ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{s.isVeg ? 'V' : 'NV'}</span>
+                      <span className="text-gray-400 w-12 text-right">{s.station}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => { setPdfSuggestions([]); setPdfFile(null); }} className="flex-1 py-3 border border-gray-300 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors">
+                    Back
+                  </button>
+                  <button onClick={handlePdfImport} disabled={pdfImporting}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {pdfImporting ? <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
+                    Import {pdfSuggestions.length} items
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

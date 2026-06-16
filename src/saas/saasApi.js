@@ -371,6 +371,20 @@ export async function suggestMenuItems(items) {
   return json;
 }
 
+export async function suggestFromPDF(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = localStorage.getItem('saas_token');
+  const res = await fetch(`${currentBase}/api/ai-menu/suggest-from-pdf`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'PDF parsing failed');
+  return json;
+}
+
 export async function suggestFromCSV(file) {
   const formData = new FormData();
   formData.append('file', file);
