@@ -14,6 +14,7 @@ import CashierDine from './pages/CashierDine'
 import CashierDelivery from './pages/CashierDelivery'
 import CaptainPanel from './pages/CaptainPanel'
 import PrintStation from './pages/PrintStation'
+import PrinterManagement from './pages/PrinterManagement'
 import RegisterPage from './saas/RegisterPage'
 import OnboardingWizard from './saas/OnboardingWizard'
 import PlanPayment from './saas/PlanPayment'
@@ -83,6 +84,11 @@ function App() {
           <Route path="/admin/marketing" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <MarketingAI />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/printers" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <PrinterManagement />
             </ProtectedRoute>
           } />
           

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Utensils, Users, Table, FileText, Megaphone, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Utensils, Users, Table, FileText, Megaphone, Printer, LogOut, Menu, X } from 'lucide-react'
 
 const Sidebar = () => {
   const location = useLocation()
@@ -13,6 +13,7 @@ const Sidebar = () => {
     { path: '/admin/tables', icon: Table, label: 'Tables' },
     { path: '/admin/reports', icon: FileText, label: 'Reports' },
     { path: '/admin/marketing', icon: Megaphone, label: 'Marketing AI' },
+    { path: '/admin/printers', icon: Printer, label: 'Printers' },
   ]
 
   const closeSidebar = () => setIsOpen(false)
