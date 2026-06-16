@@ -476,6 +476,18 @@ export async function getExcludedTransactions(restaurantId, from, to) {
   return json;
 }
 
+// ── Digital Bill ──
+export async function sendDigitalBill(orderId, { phone, channels, order }) {
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/send-digital-bill`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, channels, order }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to send digital bill');
+  return json;
+}
+
 // ── Permissions ──
 export function getStationPermissions() {
   try { return JSON.parse(localStorage.getItem('station_config') || '{}'); } catch { return {}; }
