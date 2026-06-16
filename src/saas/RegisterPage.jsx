@@ -16,6 +16,8 @@ export default function RegisterPage() {
     confirmPassword: '',
     restaurantName: '',
     city: '',
+    restaurantType: '',
+    outletCount: '',
   });
 
   const validate = () => {
@@ -30,6 +32,8 @@ export default function RegisterPage() {
     if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     if (!form.restaurantName.trim()) e.restaurantName = 'Restaurant name is required';
     if (!form.city.trim()) e.city = 'City is required';
+    if (!form.restaurantType) e.restaurantType = 'Restaurant type is required';
+    if (!form.outletCount) e.outletCount = 'Outlet count is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -51,6 +55,8 @@ export default function RegisterPage() {
         password: form.password,
         restaurantName: form.restaurantName,
         city: form.city,
+        restaurantType: form.restaurantType,
+        outletCount: form.outletCount,
       };
       const res = await registerOwner(data);
       await saveOnboardingStep('restaurant', {
@@ -122,6 +128,31 @@ export default function RegisterPage() {
               <label className="text-xs font-semibold text-slate-500 mb-1.5 block">City</label>
               <input type="text" placeholder="e.g. Bangalore" value={form.city} onChange={handleChange('city')} className={inputClass} />
               {errors.city && <p className="text-xs text-red-500 mt-1.5">{errors.city}</p>}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Restaurant type</label>
+              <select value={form.restaurantType} onChange={handleChange('restaurantType')} className={inputClass}>
+                <option value="">Select restaurant type</option>
+                <option value="QSR">QSR</option>
+                <option value="Fine Dining">Fine Dining</option>
+                <option value="Bar & Restaurant">Bar & Restaurant</option>
+                <option value="Dhaba">Dhaba</option>
+                <option value="Cloud Kitchen">Cloud Kitchen</option>
+                <option value="Cafe">Cafe</option>
+              </select>
+              {errors.restaurantType && <p className="text-xs text-red-500 mt-1.5">{errors.restaurantType}</p>}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Number of outlets</label>
+              <div className="flex gap-2 flex-wrap">
+                {['1', '2–5', '6–15', '15+'].map((opt) => (
+                  <label key={opt} className={`flex-1 min-w-[60px] cursor-pointer rounded-xl border px-3 py-2 text-center text-sm font-medium transition-all ${form.outletCount === opt ? 'border-[#E53935] bg-red-50 text-[#E53935]' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                    <input type="radio" name="outletCount" value={opt} checked={form.outletCount === opt} onChange={handleChange('outletCount')} className="sr-only" />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+              {errors.outletCount && <p className="text-xs text-red-500 mt-1.5">{errors.outletCount}</p>}
             </div>
 
             <button
