@@ -1,11 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
-import { tables } from '../data/mockData'
+import { getTenantSections } from '../saas/saasApi'
 import { Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TableManagement = () => {
-  const [tableData, setTableData] = useState(tables)
+  const [tableData, setTableData] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const restaurantId = JSON.parse(localStorage.getItem('saas_owner') || '{}')?.restaurantId
+
+  useEffect(() => {
+    if (!restaurantId) return
+    const fetchTables = async () => {
+      setLoading(true)
+      try {
+        const data = await getTenantSections(restaurantId)
+        setTableData(data || [])
+      } catch (err) {
+        console.error('Failed to load tables:', err)
+        toast.error('Failed to load floor plan')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTables()
+  }, [restaurantId])
 
   const groupedTables = tableData.reduce((acc, table) => {
     if (!acc[table.section]) {

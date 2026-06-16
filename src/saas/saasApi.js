@@ -96,3 +96,27 @@ export async function tenantLogin(slug, role, username, password, stationId = nu
   localStorage.setItem(`tenant_${slug}_session`, JSON.stringify(json.session));
   return json;
 }
+
+export async function getTenantSections(restaurantId) {
+  const res = await fetch(`${SAAS_API}/api/tenant/sections/${restaurantId}`);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch sections');
+  return json.tables;
+}
+
+export async function getOnlineOrders(restaurantId) {
+  const res = await fetch(`${SAAS_API}/api/urbanpiper/orders/${restaurantId}`);
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to fetch online orders');
+  return json;
+}
+
+export async function updateOnlineOrderStatus(orderId, status) {
+  const res = await fetch(`${SAAS_API}/api/urbanpiper/orders/${orderId}/status`, {
+    method: 'PATCH', headers: h,
+    body: JSON.stringify({ status }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to update status');
+  return json;
+}

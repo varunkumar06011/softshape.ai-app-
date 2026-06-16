@@ -27,6 +27,7 @@ export default function TenantCaptainWrapper() {
 
   return (
     <CaptainPanel
+      slug={slug}
       restaurantId={session.restaurantId}
       onLogout={() => {
         localStorage.removeItem(sessionKey);

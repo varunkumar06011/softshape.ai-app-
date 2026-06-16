@@ -1,18 +1,47 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { tables, menuItems } from '../data/mockData'
+import { menuItems } from '../data/mockData'
+import { getTenantSections } from '../saas/saasApi'
+import { useOfflineSync } from '../hooks/useOfflineSync'
+import { smartPrintKOT } from '../utils/printTemplates'
+import { initDB, cacheSections, getSectionsFromCache } from '../lib/localCache'
 import { ArrowLeft, Search, Plus, Minus, Send, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const CaptainPanel = () => {
+const CaptainPanel = ({ slug, restaurantId }) => {
   const { user, logout } = useAuth()
-  const [view, setView] = useState('tables') // 'tables' or 'order'
+  const [view, setView] = useState('tables')
   const [selectedTable, setSelectedTable] = useState(null)
   const [selectedItems, setSelectedItems] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [tables, setTables] = useState([])
+  const [tablesLoading, setTablesLoading] = useState(false)
 
+  const { isOnline, pendingCount } = useOfflineSync(slug)
   const categories = ['All', 'Starters', 'Main Course', 'Rice', 'Breads', 'Bar']
+
+  useEffect(() => {
+    initDB()
+  }, [])
+
+  useEffect(() => {
+    if (!restaurantId) return
+    const fetchTables = async () => {
+      setTablesLoading(true)
+      try {
+        const data = await getTenantSections(restaurantId)
+        setTables(data || [])
+      } catch (err) {
+        console.error('Failed to load tables:', err)
+        setTables([])
+        toast.error('No tables configured')
+      } finally {
+        setTablesLoading(false)
+      }
+    }
+    fetchTables()
+  }, [restaurantId])
 
   const groupedTables = tables.reduce((acc, table) => {
     if (!acc[table.section]) {
@@ -70,6 +99,15 @@ const CaptainPanel = () => {
     }
 
     if (confirm(message + '\n\nSend KOT?')) {
+      smartPrintKOT({
+        kotNumber: 'K-' + Date.now().toString().slice(-6),
+        table: selectedTable?.label || '-',
+        section: selectedTable?.section || '-',
+        captain: user?.name || '-',
+        items: selectedItems.map(i => ({ name: i.name, qty: i.qty })),
+        createdAt: new Date().toISOString(),
+        restaurantName: 'VGrand Restaurant'
+      })
       toast.success('KOT sent successfully!')
       setSelectedItems([])
       setView('tables')
@@ -99,41 +137,50 @@ const CaptainPanel = () => {
           </button>
         </div>
         <p className="text-sm mt-2 opacity-75">VGrand Restaurant</p>
+        {!isOnline && (
+          <p className="text-xs mt-1 text-red-200">Offline — {pendingCount} pending sync</p>
+        )}
       </div>
 
       {view === 'tables' ? (
         <div className="p-4">
           <h2 className="text-xl font-bold mb-4">Select Table</h2>
-          <div className="space-y-6">
-            {Object.entries(groupedTables).map(([section, sectionTables]) => (
-              <div key={section}>
-                <h3 className="font-semibold mb-3">{section}</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {sectionTables.map((table) => (
-                    <div
-                      key={table.id}
-                      onClick={() => {
-                        if (table.status === 'free') {
-                          setSelectedTable(table)
-                          setView('order')
-                        } else {
-                          toast.error('Table is occupied')
-                        }
-                      }}
-                      className={`p-4 rounded-2xl text-center cursor-pointer transition-all ${
-                        table.status === 'free'
-                          ? 'bg-white border-2 border-green-400'
-                          : 'bg-brand text-white'
-                      }`}
-                    >
-                      <p className="font-bold text-lg">{table.label}</p>
-                      <p className="text-sm opacity-75 capitalize">{table.status}</p>
-                    </div>
-                  ))}
+          {tablesLoading ? (
+            <p className="text-gray-500">Loading tables...</p>
+          ) : tables.length === 0 ? (
+            <p className="text-gray-500">No tables configured</p>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(groupedTables).map(([section, sectionTables]) => (
+                <div key={section}>
+                  <h3 className="font-semibold mb-3">{section}</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {sectionTables.map((table) => (
+                      <div
+                        key={table.id}
+                        onClick={() => {
+                          if (table.status === 'free') {
+                            setSelectedTable(table)
+                            setView('order')
+                          } else {
+                            toast.error('Table is occupied')
+                          }
+                        }}
+                        className={`p-4 rounded-2xl text-center cursor-pointer transition-all ${
+                          table.status === 'free'
+                            ? 'bg-white border-2 border-green-400'
+                            : 'bg-brand text-white'
+                        }`}
+                      >
+                        <p className="font-bold text-lg">{table.label}</p>
+                        <p className="text-sm opacity-75 capitalize">{table.status}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-4">

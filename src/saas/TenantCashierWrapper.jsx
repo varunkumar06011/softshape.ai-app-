@@ -46,6 +46,7 @@ export default function TenantCashierWrapper() {
 
   return (
     <CashierDine
+      slug={slug}
       restaurantId={session.restaurantId}
       stationId={stationId}
       menuFilter={session.menuFilter || 'FOOD'}

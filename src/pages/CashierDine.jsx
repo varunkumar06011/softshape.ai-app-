@@ -1,21 +1,65 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import TopBar from '../components/TopBar'
 import TableCard from '../components/TableCard'
 import BillModal from '../components/BillModal'
-import { tables, menuItems } from '../data/mockData'
+import { menuItems } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
-import { useSocketSim } from '../hooks/useSocketSim'
+import { useSocket } from '../hooks/useSocket'
+import { useOfflineSync } from '../hooks/useOfflineSync'
+import { getTenantSections } from '../saas/saasApi'
+import { smartPrintKOT, smartPrintBill } from '../utils/printTemplates'
+import { initDB, cacheMenu, cacheOrders, cacheSections, queueMutation, getMenuFromCache, getOrdersFromCache, getSectionsFromCache } from '../lib/localCache'
 import { Plus, Printer, FileText, X, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const CashierDine = () => {
+const CashierDine = ({ slug, restaurantId }) => {
   const { user, logout } = useAuth()
-  const { tableUpdates } = useSocketSim()
   const [selectedTable, setSelectedTable] = useState(null)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showBillModal, setShowBillModal] = useState(false)
   const [tableOrders, setTableOrders] = useState({})
   const [searchTerm, setSearchTerm] = useState('')
+  const [tables, setTables] = useState([])
+  const [tablesLoading, setTablesLoading] = useState(false)
+  const [activeOrders, setActiveOrders] = useState([])
+
+  const { isOnline, pendingCount } = useOfflineSync(slug)
+
+  useSocket(restaurantId, {
+    onOrderUpdated: (order) => {
+      setActiveOrders(prev => {
+        const idx = prev.findIndex(o => o.id === order.id)
+        if (idx >= 0) { const next = [...prev]; next[idx] = order; return next }
+        return [order, ...prev]
+      })
+    },
+    onOrderSettled: ({ orderId }) => {
+      setActiveOrders(prev => prev.filter(o => o.id !== orderId))
+      setSelectedTable(null)
+    }
+  })
+
+  useEffect(() => {
+    initDB()
+  }, [])
+
+  useEffect(() => {
+    if (!restaurantId) return
+    const fetchTables = async () => {
+      setTablesLoading(true)
+      try {
+        const data = await getTenantSections(restaurantId)
+        setTables(data || [])
+      } catch (err) {
+        console.error('Failed to load tables:', err)
+        setTables([])
+        toast.error('No tables configured')
+      } finally {
+        setTablesLoading(false)
+      }
+    }
+    fetchTables()
+  }, [restaurantId])
 
   const groupedTables = tables.reduce((acc, table) => {
     if (!acc[table.section]) {
@@ -37,7 +81,19 @@ const CashierDine = () => {
   }
 
   const handleKOTPrint = () => {
-    toast.success('KOT sent to kitchen printer')
+    if (selectedTable) {
+      const items = currentOrder.map(i => ({ name: i.name, qty: i.qty, price: i.price }))
+      smartPrintKOT({
+        kotNumber: 'K-' + Date.now().toString().slice(-6),
+        table: selectedTable.label,
+        section: selectedTable.section,
+        captain: user?.name || '-',
+        items,
+        createdAt: new Date().toISOString(),
+        restaurantName: 'VGrand Restaurant'
+      })
+      toast.success('KOT sent to kitchen printer')
+    }
   }
 
   const handleRequestBill = () => {
@@ -59,28 +115,45 @@ const CashierDine = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <TopBar restaurantName="VGrand Restaurant" />
+      <TopBar restaurantName="VGrand Restaurant" isOnline={isOnline} pendingSync={pendingCount} />
+
+      {!isOnline && (
+        <div className="bg-red-50 text-red-700 text-xs px-6 py-1 border-b border-red-200 flex items-center justify-between">
+          <span>No internet — billing works offline. {pendingCount} order{pendingCount !== 1 ? 's' : ''} pending sync.</span>
+        </div>
+      )}
+      {isOnline && pendingCount > 0 && (
+        <div className="bg-green-50 text-green-700 text-xs px-6 py-1 border-b border-green-200 flex items-center justify-between">
+          <span>Back online — syncing {pendingCount} order{pendingCount !== 1 ? 's' : ''}...</span>
+        </div>
+      )}
 
       <div className="flex h-[calc(100vh-73px)]">
         <div className="w-3/5 p-6 overflow-y-auto">
           <h2 className="text-xl font-bold mb-6">Tables</h2>
-          <div className="space-y-6">
-            {Object.entries(groupedTables).map(([section, sectionTables]) => (
-              <div key={section}>
-                <h3 className="font-semibold mb-3">{section}</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  {sectionTables.map((table) => (
-                    <TableCard
-                      key={table.id}
-                      table={table}
-                      status={table.status}
-                      onClick={() => setSelectedTable(table)}
-                    />
-                  ))}
+          {tablesLoading ? (
+            <p className="text-gray-500">Loading tables...</p>
+          ) : tables.length === 0 ? (
+            <p className="text-gray-500">No tables configured</p>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(groupedTables).map(([section, sectionTables]) => (
+                <div key={section}>
+                  <h3 className="font-semibold mb-3">{section}</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    {sectionTables.map((table) => (
+                      <TableCard
+                        key={table.id}
+                        table={table}
+                        status={table.status}
+                        onClick={() => setSelectedTable(table)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="w-2/5 bg-white border-l border-gray-200 p-6">

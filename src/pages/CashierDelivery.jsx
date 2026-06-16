@@ -1,15 +1,34 @@
 import { useState, useEffect } from 'react'
+import { io } from 'socket.io-client'
 import TopBar from '../components/TopBar'
 import OrderCard from '../components/OrderCard'
 import { menuItems } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
-import { useSocketSim } from '../hooks/useSocketSim'
+import { getOnlineOrders, updateOnlineOrderStatus } from '../saas/saasApi'
+import { smartPrintKOT } from '../utils/printTemplates'
 import { Plus, X, Search, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const CashierDelivery = () => {
+const BACKEND = import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'
+
+const STATUS_BADGES = {
+  NEW: 'bg-red-100 text-red-800',
+  ACCEPTED: 'bg-blue-100 text-blue-800',
+  PREPARING: 'bg-yellow-100 text-yellow-800',
+  READY: 'bg-green-100 text-green-800',
+  DISPATCHED: 'bg-gray-100 text-gray-800',
+  rejected: 'bg-gray-200 text-gray-600',
+}
+
+const PLATFORM_COLORS = {
+  swiggy: 'bg-orange-100 text-orange-800',
+  zomato: 'bg-red-100 text-red-800',
+}
+
+const CashierDelivery = ({ restaurantId }) => {
   const { user, logout } = useAuth()
-  const { deliveryOrders, setDeliveryOrders } = useSocketSim()
+  const [onlineOrders, setOnlineOrders] = useState([])
+  const [newAlert, setNewAlert] = useState(false)
   const [showAddOrder, setShowAddOrder] = useState(false)
   const [showWalkIn, setShowWalkIn] = useState(false)
   const [walkInOrders, setWalkInOrders] = useState([])
@@ -17,24 +36,56 @@ const CashierDelivery = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [manualOrder, setManualOrder] = useState({ platform: 'swiggy', customerName: '', items: '', total: '' })
 
-  const handleAcceptOrder = (orderId) => {
-    const prepTime = prompt('Select prep time:', '15')
-    if (prepTime) {
-      setDeliveryOrders(deliveryOrders.map(order =>
-        order.id === orderId ? { ...order, status: 'accepted', prepTime } : order
-      ))
-      toast.success('KOT sent to kitchen + packing slip printed')
+  useEffect(() => {
+    if (!restaurantId) return
+    const fetchOrders = async () => {
+      try {
+        const data = await getOnlineOrders(restaurantId)
+        setOnlineOrders(data || [])
+      } catch (err) {
+        console.error('Failed to load online orders:', err)
+      }
+    }
+    fetchOrders()
+
+    const socket = io(BACKEND, { transports: ['websocket'], reconnection: true })
+    socket.emit('join-restaurant', restaurantId)
+    socket.on('online-order', (order) => {
+      setOnlineOrders(prev => {
+        const exists = prev.find(o => o.id === order.id)
+        if (exists) return prev.map(o => o.id === order.id ? order : o)
+        setNewAlert(true)
+        try { new Audio('/notification.mp3').play().catch(() => {}) } catch {}
+        return [order, ...prev]
+      })
+    })
+    socket.on('online-order-status', ({ id, status }) => {
+      setOnlineOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o))
+    })
+    return () => socket.disconnect()
+  }, [restaurantId])
+
+  const handleStatusUpdate = async (orderId, status) => {
+    try {
+      await updateOnlineOrderStatus(orderId, status)
+      setOnlineOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
+      toast.success(`Order marked as ${status}`)
+    } catch (err) {
+      toast.error('Failed to update status')
     }
   }
 
-  const handleRejectOrder = (orderId) => {
-    const reason = prompt('Reason for rejection:', 'Out of stock')
-    if (reason) {
-      setDeliveryOrders(deliveryOrders.map(order =>
-        order.id === orderId ? { ...order, status: 'rejected', reason } : order
-      ))
-      toast.success('Order rejected')
-    }
+  const handleAcceptOrder = (order) => {
+    handleStatusUpdate(order.id, 'ACCEPTED')
+    smartPrintKOT({
+      kotNumber: 'K-' + Date.now().toString().slice(-6),
+      table: order.platform?.toUpperCase() || 'DELIVERY',
+      section: order.customerName || '-',
+      captain: user?.name || '-',
+      items: (order.items || []).map(i => ({ name: i.name, qty: i.qty || 1 })),
+      createdAt: new Date().toISOString(),
+      restaurantName: 'VGrand Restaurant'
+    })
   }
 
   const handleAddWalkInItem = (item) => {
@@ -58,13 +109,13 @@ const CashierDelivery = () => {
 
   const handleManualOrder = () => {
     if (manualOrder.customerName && manualOrder.total) {
-      setDeliveryOrders([...deliveryOrders, {
+      setOnlineOrders([...onlineOrders, {
         id: `m${Date.now()}`,
         platform: manualOrder.platform,
         customerName: manualOrder.customerName,
         items: manualOrder.items.split(',').map(name => ({ name: name.trim(), qty: 1, price: 0 })),
         total: parseInt(manualOrder.total),
-        status: 'new',
+        status: 'NEW',
         time: 'Just now'
       }])
       setManualOrder({ platform: 'swiggy', customerName: '', items: '', total: '' })
@@ -95,14 +146,58 @@ const CashierDelivery = () => {
           </div>
 
           <div className="space-y-4">
-            {deliveryOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onAccept={() => handleAcceptOrder(order.id)}
-                onReject={() => handleRejectOrder(order.id)}
-                showActions={order.status === 'new'}
-              />
+            {onlineOrders.map((order) => (
+              <div key={order.id} className="bg-white border border-gray-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${PLATFORM_COLORS[order.platform] || 'bg-gray-100 text-gray-700'}`}>
+                    {order.platform?.toUpperCase() || 'ONLINE'}
+                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_BADGES[order.status] || 'bg-gray-100 text-gray-700'}`}>
+                    {order.status}
+                  </span>
+                </div>
+                <p className="font-semibold mb-1">{order.customerName || 'Customer'}</p>
+                <div className="text-sm text-gray-600 mb-2">
+                  {(order.items || []).map((item, idx) => (
+                    <div key={idx}>{item.name} x {item.qty || 1}</div>
+                  ))}
+                </div>
+                <p className="font-bold mb-3">₹{order.total || 0}</p>
+                <div className="flex gap-2">
+                  {order.status === 'NEW' && (
+                    <button
+                      onClick={() => handleAcceptOrder(order)}
+                      className="flex-1 py-2 bg-brand text-white rounded-xl text-sm hover:bg-brand-dark transition-colors"
+                    >
+                      Accept
+                    </button>
+                  )}
+                  {order.status === 'ACCEPTED' && (
+                    <button
+                      onClick={() => handleStatusUpdate(order.id, 'PREPARING')}
+                      className="flex-1 py-2 bg-yellow-500 text-white rounded-xl text-sm hover:bg-yellow-600 transition-colors"
+                    >
+                      Mark Preparing
+                    </button>
+                  )}
+                  {order.status === 'PREPARING' && (
+                    <button
+                      onClick={() => handleStatusUpdate(order.id, 'READY')}
+                      className="flex-1 py-2 bg-green-500 text-white rounded-xl text-sm hover:bg-green-600 transition-colors"
+                    >
+                      Mark Ready
+                    </button>
+                  )}
+                  {order.status === 'READY' && (
+                    <button
+                      onClick={() => handleStatusUpdate(order.id, 'DISPATCHED')}
+                      className="flex-1 py-2 bg-gray-700 text-white rounded-xl text-sm hover:bg-gray-800 transition-colors"
+                    >
+                      Dispatch
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </div>
