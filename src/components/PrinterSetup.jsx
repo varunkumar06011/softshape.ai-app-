@@ -32,7 +32,11 @@ export default function PrinterSetup() {
 
   const handleTest = async (key) => {
     const printer = config[key]
-    if (!printer.ip) { toast.error('Enter printer IP first'); return }
+    if (!printer.ip) {
+      if (key === 'bar') return
+      toast.error('Enter printer IP first')
+      return
+    }
     setTestingKey(key)
     try {
       await testPrinter(printer.ip, printer.port, 'Test Restaurant')

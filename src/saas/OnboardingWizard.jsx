@@ -451,19 +451,21 @@ function Step4({ plan, onChangePlan, onboarding }) {
 
 function StepPrinter({ onboarding, persist }) {
   const [kotIp, setKotIp] = useState(onboarding.printers?.kotIp || '192.168.1.100');
+  const [barIp, setBarIp] = useState(onboarding.printers?.barIp || '');
   const [billIp, setBillIp] = useState(onboarding.printers?.billIp || '192.168.1.101');
-  const [tested, setTested] = useState({ kot: false, bill: false });
+  const [tested, setTested] = useState({ kot: false, bar: false, bill: false });
   const [selectedTemplate, setSelectedTemplate] = useState(onboarding.billTemplate || 'CLASSIC');
   const [savingTemplate, setSavingTemplate] = useState(false);
 
-  const save = (kotVal, billVal) => {
-    persist('printers', { kotIp: kotVal, billIp: billVal });
+  const save = (kotVal, barVal, billVal) => {
+    persist('printers', { kotIp: kotVal, barIp: barVal, billIp: billVal });
   };
 
   const testPrint = (type) => {
     setTimeout(() => {
       setTested((prev) => ({ ...prev, [type]: true }));
-      toast.success(`${type === 'kot' ? 'KOT' : 'Bill'} printer test sent!`);
+      const label = type === 'kot' ? 'KOT' : type === 'bar' ? 'Bar' : 'Bill';
+      toast.success(`${label} printer test sent!`);
     }, 1000);
   };
 
@@ -488,7 +490,7 @@ function StepPrinter({ onboarding, persist }) {
       subLabel: 'Kitchen Order Ticket',
       desc: 'Placed at the kitchen counter. Prints every new order automatically.',
       ip: kotIp,
-      setIp: (v) => { setKotIp(v); save(v, billIp); },
+      setIp: (v) => { setKotIp(v); save(v, barIp, billIp); },
       steps: [
         'Connect the thermal printer to your restaurant WiFi or LAN switch.',
         'Power on and hold the FEED button to print a self-test page.',
@@ -497,12 +499,26 @@ function StepPrinter({ onboarding, persist }) {
       ],
     },
     {
+      key: 'bar',
+      label: 'Bar Printer',
+      subLabel: 'Liquor KOT',
+      desc: 'Optional. Prints liquor orders to the bar counter. Falls back to kitchen printer if not set.',
+      ip: barIp,
+      setIp: (v) => { setBarIp(v); save(kotIp, v, billIp); },
+      steps: [
+        'Optional: place at the bar counter for liquor orders only.',
+        'If you do not have a separate bar printer, leave blank.',
+        'Liquor items will automatically fall back to the kitchen printer.',
+        'Enter IP and test if you want a dedicated bar printer.',
+      ],
+    },
+    {
       key: 'bill',
       label: 'Bill Printer',
       subLabel: 'Customer Receipt',
       desc: 'Placed at the cashier counter. Prints bills and receipts.',
       ip: billIp,
-      setIp: (v) => { setBillIp(v); save(kotIp, v); },
+      setIp: (v) => { setBillIp(v); save(kotIp, barIp, v); },
       steps: [
         'Connect the printer to the same WiFi/LAN as your POS device.',
         'Print a self-test page by holding FEED while powering on.',

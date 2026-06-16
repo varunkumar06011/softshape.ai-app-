@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Printer, Circle, Loader2 } from 'lucide-react'
-import { printKOTViAgent, printBillViaAgent } from '../lib/printerConfig'
+import { printKOTViAgent, printBillViaAgent, loadPrinterConfig } from '../lib/printerConfig'
 import PrinterSetup from '../components/PrinterSetup'
 import toast from 'react-hot-toast'
 
@@ -84,10 +84,16 @@ const PrintStation = () => {
 
   useEffect(() => {
     setKitchenKOTs([
-      { id: 'kot1', table: 'AC-2', items: [{ name: 'Paneer Butter Masala', qty: 2 }, { name: 'Butter Naan', qty: 4 }], time: '10:30 AM', status: 'PRINTED' },
+      { id: 'kot1', table: 'AC-2', items: [
+        { name: 'Paneer Butter Masala', qty: 2, menuType: 'FOOD' },
+        { name: 'Butter Naan', qty: 4, menuType: 'FOOD' },
+      ], time: '10:30 AM', status: 'PRINTED' },
     ])
     setBarKOTs([
-      { id: 'bar1', table: 'AC-2', items: [{ name: 'Whisky (60ml)', qty: 2 }, { name: 'Kingfisher Beer', qty: 1 }], time: '10:30 AM', status: 'PRINTED' },
+      { id: 'bar1', table: 'AC-2', items: [
+        { name: 'Whisky (60ml)', qty: 2, menuType: 'LIQUOR' },
+        { name: 'Kingfisher Beer', qty: 1, menuType: 'LIQUOR' },
+      ], time: '10:30 AM', status: 'PRINTED' },
     ])
     setBills([
       { id: 'bill1', table: 'AC-1', total: 840, time: '10:15 AM', status: 'PRINTED' },
@@ -98,11 +104,33 @@ const PrintStation = () => {
     setLoadingKey(key)
     try {
       if (key === 'kitchen') {
-        await printKOTViAgent('kitchen', mockKOTData)
+        const kot = kitchenKOTs[0]
+        if (!kot) { toast.error('No kitchen KOT to print'); return }
+        const foodItems = kot.items.filter(i => (i.menuType || 'FOOD') === 'FOOD')
+        if (foodItems.length === 0) { toast.error('No food items'); return }
+        await printKOTViAgent('kitchen', {
+          kotNumber: kot.id.toUpperCase(),
+          table: kot.table,
+          section: 'Main Hall',
+          captain: 'Captain',
+          items: foodItems,
+        })
         toast.success('Kitchen KOT printed')
       } else if (key === 'bar') {
-        await printKOTViAgent('bar', mockKOTData)
-        toast.success('Bar KOT printed')
+        const kot = barKOTs[0]
+        if (!kot) { toast.error('No bar KOT to print'); return }
+        const liquorItems = kot.items.filter(i => (i.menuType || 'FOOD') === 'LIQUOR')
+        if (liquorItems.length === 0) { toast.error('No liquor items'); return }
+        const config = loadPrinterConfig()
+        const target = (config.bar?.ip) ? 'bar' : 'kitchen'
+        await printKOTViAgent(target, {
+          kotNumber: kot.id.toUpperCase(),
+          table: kot.table,
+          section: 'Main Hall',
+          captain: 'Captain',
+          items: liquorItems,
+        })
+        toast.success(`${target === 'bar' ? 'Bar' : 'Kitchen (fallback)'} KOT printed`)
       } else if (key === 'bill') {
         await printBillViaAgent(buildMockBillData())
         toast.success('Bill printed')
