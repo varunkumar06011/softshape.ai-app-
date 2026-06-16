@@ -15,7 +15,6 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Okra', 'system-ui', 'sans-serif'],
       },
     },
   },
