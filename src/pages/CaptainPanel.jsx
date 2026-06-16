@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { currentBase } from '../lib/serverUrl'
 import { getTenantSections, getActiveOrders, swapTable, mergeOrders } from '../saas/saasApi'
 import { smartPrintKOT } from '../utils/printTemplates'
 import { useSocket } from '../hooks/useSocket'
@@ -90,7 +91,7 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
         if (navigator.onLine) {
           const [orders, menu] = await Promise.all([
             getActiveOrders(restaurantId, slug),
-            fetch(`${import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}/api/menu/${restaurantId}?type=${menuFilter}`).then(r => r.json()),
+            fetch(`${currentBase}/api/menu/${restaurantId}?type=${menuFilter}`).then(r => r.json()),
           ])
           const orderList = orders || []
           const allItems = Object.values(menu.categories || {}).flat()
@@ -124,7 +125,7 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
   const fetchMenu = async (section) => {
     if (!restaurantId || !slug) return
     try {
-      const url = `${import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}/api/menu/${restaurantId}?type=${menuFilter}${section ? `&section=${encodeURIComponent(section)}` : ''}`
+      const url = `${currentBase}/api/menu/${restaurantId}?type=${menuFilter}${section ? `&section=${encodeURIComponent(section)}` : ''}`
       const menu = await fetch(url).then(r => r.json())
       const allItems = Object.values(menu.categories || {}).flat()
       setMenuItems(allItems)

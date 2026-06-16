@@ -1,6 +1,5 @@
 import { getPendingMutations, markMutationSynced, getPendingKOTs, markKOTSynced } from './localCache'
-
-const SAAS_API = import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'
+import { currentBase } from './serverUrl'
 
 function tenantAuthHeader(slug) {
   const token = localStorage.getItem(`tenant_${slug}_token`)
@@ -12,7 +11,7 @@ async function flushOrderMutations(slug) {
   if (mutations.length === 0) return
 
   try {
-    const res = await fetch(`${SAAS_API}/api/orders/sync-batch`, {
+    const res = await fetch(`${currentBase}/api/orders/sync-batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...tenantAuthHeader(slug) },
       body: JSON.stringify({ mutations })
@@ -34,7 +33,7 @@ async function flushKOTQueue(slug) {
   for (const kot of kots) {
     try {
       const res = await fetch(
-        `${SAAS_API}/api/orders/${kot.orderId}/send-kot`,
+        `${currentBase}/api/orders/${kot.orderId}/send-kot`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...tenantAuthHeader(slug) },

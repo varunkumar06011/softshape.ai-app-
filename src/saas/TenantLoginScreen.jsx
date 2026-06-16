@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tenantLogin } from './saasApi';
-import { ArrowLeft, User } from 'lucide-react';
+import { currentBase, loadServerUrl, saveServerUrl } from '../lib/serverUrl';
+import { ArrowLeft, User, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function TenantLoginScreen({ slug, role, stationId, onSuccess }) {
@@ -10,6 +11,12 @@ export default function TenantLoginScreen({ slug, role, stationId, onSuccess }) 
   const [error, setError] = useState('');
   const [form, setForm] = useState({ username: '', password: '', pin: '' });
   const [selectedCaptain, setSelectedCaptain] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [serverUrl, setServerUrl] = useState(currentBase);
+
+  useEffect(() => {
+    loadServerUrl().then(() => setServerUrl(currentBase));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,7 +49,14 @@ export default function TenantLoginScreen({ slug, role, stationId, onSuccess }) 
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
-        <div className="bg-white rounded-[48px] border border-[#FFCDD2] p-8 md:p-10">
+        <div className="bg-white rounded-[48px] border border-[#FFCDD2] p-8 md:p-10 relative">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-[#E53935] transition-colors"
+            title="Connection settings"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
           <h1 className="text-2xl font-black text-[#1A1A1A] mb-1 text-center">
             {role === 'admin' && 'Admin Login'}
             {role === 'cashier' && 'Cashier Login'}
@@ -144,6 +158,48 @@ export default function TenantLoginScreen({ slug, role, stationId, onSuccess }) 
             </form>
           )}
         </div>
+
+        {showSettings && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+              <h3 className="text-lg font-bold mb-1">Connection settings</h3>
+              <p className="text-xs text-gray-400 mb-4">Point the app to your local backend</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Server address</label>
+                  <input
+                    type="text"
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    className="w-full h-11 rounded-xl border border-gray-200 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#E53935]"
+                    placeholder="e.g. http://192.168.1.50:3001"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400">
+                  Default: {import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}
+                </p>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await saveServerUrl(serverUrl);
+                    toast.success('Server address saved. Restart app to apply.');
+                    setShowSettings(false);
+                  }}
+                  className="flex-1 py-3 bg-[#E53935] text-white rounded-xl text-sm font-semibold hover:bg-[#C62828]"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

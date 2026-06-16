@@ -1,5 +1,5 @@
 // SaaS backend — separate from restaurant operations backend
-const SAAS_API = import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000';
+import { currentBase } from '../lib/serverUrl';
 
 const h = { 'Content-Type': 'application/json' };
 
@@ -9,7 +9,7 @@ function authHeader() {
 }
 
 export async function registerOwner(data) {
-  const res = await fetch(`${SAAS_API}/api/auth/register`, { method: 'POST', headers: h, body: JSON.stringify(data) });
+  const res = await fetch(`${currentBase}/api/auth/register`, { method: 'POST', headers: h, body: JSON.stringify(data) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Registration failed');
   if (json.token) {
@@ -20,7 +20,7 @@ export async function registerOwner(data) {
 }
 
 export async function loginOwner(email, password) {
-  const res = await fetch(`${SAAS_API}/api/auth/login`, { method: 'POST', headers: h, body: JSON.stringify({ email, password }) });
+  const res = await fetch(`${currentBase}/api/auth/login`, { method: 'POST', headers: h, body: JSON.stringify({ email, password }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Login failed');
   localStorage.setItem('saas_token', json.token);
@@ -39,7 +39,7 @@ export function logoutOwner() {
 }
 
 export async function updateBillTemplate(billTemplate) {
-  const res = await fetch(`${SAAS_API}/api/onboarding/bill-template`, {
+  const res = await fetch(`${currentBase}/api/onboarding/bill-template`, {
     method: 'PATCH',
     headers: authHeader(),
     body: JSON.stringify({ billTemplate }),
@@ -61,7 +61,7 @@ export function getOnboardingData() {
 }
 
 export async function createRazorpayOrder(planId) {
-  const res = await fetch(`${SAAS_API}/api/payment/create-order`, {
+  const res = await fetch(`${currentBase}/api/payment/create-order`, {
     method: 'POST', headers: authHeader(), body: JSON.stringify({ planId }),
   });
   const json = await res.json();
@@ -70,7 +70,7 @@ export async function createRazorpayOrder(planId) {
 }
 
 export async function verifyPayment(payload) {
-  const res = await fetch(`${SAAS_API}/api/payment/verify`, {
+  const res = await fetch(`${currentBase}/api/payment/verify`, {
     method: 'POST', headers: authHeader(), body: JSON.stringify(payload),
   });
   const json = await res.json();
@@ -83,7 +83,7 @@ export async function uploadMenuCSV(restaurantId, file) {
   formData.append('file', file);
   formData.append('restaurantId', restaurantId);
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/menu/upload-csv`, {
+  const res = await fetch(`${currentBase}/api/menu/upload-csv`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -94,14 +94,14 @@ export async function uploadMenuCSV(restaurantId, file) {
 }
 
 export async function getTenantBySlug(slug) {
-  const res = await fetch(`${SAAS_API}/api/tenant/${slug}`);
+  const res = await fetch(`${currentBase}/api/tenant/${slug}`);
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Tenant not found');
   return json;
 }
 
 export async function tenantLogin(slug, role, username, password, stationId = null) {
-  const res = await fetch(`${SAAS_API}/api/tenant/${slug}/login`, {
+  const res = await fetch(`${currentBase}/api/tenant/${slug}/login`, {
     method: 'POST', headers: h,
     body: JSON.stringify({ role, username, password, stationId }),
   });
@@ -114,7 +114,7 @@ export async function tenantLogin(slug, role, username, password, stationId = nu
 
 // ── Tenant sections ──
 export async function getTenantSections(restaurantId) {
-  const res = await fetch(`${SAAS_API}/api/tenant/sections/${restaurantId}`);
+  const res = await fetch(`${currentBase}/api/tenant/sections/${restaurantId}`);
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch sections');
   return json.tables;
@@ -128,49 +128,49 @@ function tenantAuthHeader(slug) {
 
 // ── Orders ──
 export async function getActiveOrders(restaurantId, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders/${restaurantId}/active`, { headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/orders/${restaurantId}/active`, { headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch orders');
   return json;
 }
 
 export async function createOrder(orderData, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(orderData) });
+  const res = await fetch(`${currentBase}/api/orders`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(orderData) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to create order');
   return json;
 }
 
 export async function addItemsToOrder(orderId, items, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/add-items`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ items }) });
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/add-items`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ items }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to add items');
   return json;
 }
 
 export async function sendKOT(orderId, itemIds, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/send-kot`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ itemIds }) });
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/send-kot`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ itemIds }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to send KOT');
   return json;
 }
 
 export async function printBillAPI(orderId, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/print-bill`, { method: 'POST', headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/print-bill`, { method: 'POST', headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to print bill');
   return json;
 }
 
 export async function duplicateOrder(orderId, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/duplicate`, { method: 'POST', headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/duplicate`, { method: 'POST', headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to duplicate order');
   return json;
 }
 
 export async function settleOrder(orderId, paymentMode, slug) {
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/settle`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ paymentMode }) });
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/settle`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify({ paymentMode }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to settle order');
   return json;
@@ -179,7 +179,7 @@ export async function settleOrder(orderId, paymentMode, slug) {
 // ── Online Orders ──
 export async function getOnlineOrders(restaurantId) {
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/urbanpiper/orders/${restaurantId}`, { headers: token ? { Authorization: `Bearer ${token}` } : h });
+  const res = await fetch(`${currentBase}/api/urbanpiper/orders/${restaurantId}`, { headers: token ? { Authorization: `Bearer ${token}` } : h });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch online orders');
   return json;
@@ -187,7 +187,7 @@ export async function getOnlineOrders(restaurantId) {
 
 export async function updateOnlineOrderStatus(orderId, status) {
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/urbanpiper/orders/${orderId}/status`, { method: 'PATCH', headers: token ? { ...h, Authorization: `Bearer ${token}` } : h, body: JSON.stringify({ status }) });
+  const res = await fetch(`${currentBase}/api/urbanpiper/orders/${orderId}/status`, { method: 'PATCH', headers: token ? { ...h, Authorization: `Bearer ${token}` } : h, body: JSON.stringify({ status }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to update order');
   return json;
@@ -196,7 +196,7 @@ export async function updateOnlineOrderStatus(orderId, status) {
 // ── Reports ──
 export async function getReportSummary(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
-  const res = await fetch(`${SAAS_API}/api/reports/summary${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const res = await fetch(`${currentBase}/api/reports/summary${qs}`, { headers: tenantAuthHeader(restaurantId) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch summary');
   return json;
@@ -204,28 +204,28 @@ export async function getReportSummary(restaurantId, from, to) {
 
 // ── Inventory ──
 export async function getInventory(restaurantId, slug) {
-  const res = await fetch(`${SAAS_API}/api/inventory?restaurantId=${restaurantId}`, { headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/inventory?restaurantId=${restaurantId}`, { headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch inventory');
   return json;
 }
 
 export async function createInventoryItem(data, slug) {
-  const res = await fetch(`${SAAS_API}/api/inventory`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(data) });
+  const res = await fetch(`${currentBase}/api/inventory`, { method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(data) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to create inventory item');
   return json;
 }
 
 export async function updateInventoryItem(id, data, slug) {
-  const res = await fetch(`${SAAS_API}/api/inventory/${id}`, { method: 'PATCH', headers: tenantAuthHeader(slug), body: JSON.stringify(data) });
+  const res = await fetch(`${currentBase}/api/inventory/${id}`, { method: 'PATCH', headers: tenantAuthHeader(slug), body: JSON.stringify(data) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to update inventory item');
   return json;
 }
 
 export async function deleteInventoryItem(id, slug) {
-  const res = await fetch(`${SAAS_API}/api/inventory/${id}`, { method: 'DELETE', headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/inventory/${id}`, { method: 'DELETE', headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to delete inventory item');
   return json;
@@ -236,7 +236,7 @@ export async function getCaptainStats(restaurantId, slug, from, to) {
   const qs = new URLSearchParams({ restaurantId });
   if (from) qs.set('from', from);
   if (to) qs.set('to', to);
-  const res = await fetch(`${SAAS_API}/api/admin/captain-stats?${qs}`, { headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/admin/captain-stats?${qs}`, { headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch captain stats');
   return json;
@@ -244,7 +244,7 @@ export async function getCaptainStats(restaurantId, slug, from, to) {
 
 export async function getDailyReport(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
-  const res = await fetch(`${SAAS_API}/api/reports/daily${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const res = await fetch(`${currentBase}/api/reports/daily${qs}`, { headers: tenantAuthHeader(restaurantId) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch daily report');
   return json;
@@ -252,7 +252,7 @@ export async function getDailyReport(restaurantId, from, to) {
 
 export async function getChannelBreakdown(restaurantId, from, to) {
   const qs = from && to ? `?from=${from}&to=${to}` : '';
-  const res = await fetch(`${SAAS_API}/api/reports/channel-breakdown${qs}`, { headers: tenantAuthHeader(restaurantId) });
+  const res = await fetch(`${currentBase}/api/reports/channel-breakdown${qs}`, { headers: tenantAuthHeader(restaurantId) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch channel breakdown');
   return json;
@@ -261,14 +261,14 @@ export async function getChannelBreakdown(restaurantId, from, to) {
 // ── Admin ──
 export async function getAdminTransactions(restaurantId, slug, filters = {}) {
   const params = new URLSearchParams({ restaurantId, ...filters });
-  const res = await fetch(`${SAAS_API}/api/admin/transactions?${params}`, { headers: tenantAuthHeader(slug) });
+  const res = await fetch(`${currentBase}/api/admin/transactions?${params}`, { headers: tenantAuthHeader(slug) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch transactions');
   return json;
 }
 
 export async function deleteTransaction(orderId, reason, slug) {
-  const res = await fetch(`${SAAS_API}/api/admin/transactions/${orderId}`, { method: 'DELETE', headers: tenantAuthHeader(slug), body: JSON.stringify({ reason }) });
+  const res = await fetch(`${currentBase}/api/admin/transactions/${orderId}`, { method: 'DELETE', headers: tenantAuthHeader(slug), body: JSON.stringify({ reason }) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to delete transaction');
   return json;
@@ -276,35 +276,35 @@ export async function deleteTransaction(orderId, reason, slug) {
 
 // ── Menu Management ──
 export async function getMenuItems(restaurantId, type = 'BOTH') {
-  const res = await fetch(`${SAAS_API}/api/menu/${restaurantId}?type=${type}`);
+  const res = await fetch(`${currentBase}/api/menu/${restaurantId}?type=${type}`);
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch menu');
   return json;
 }
 
 export async function getTodaysSpecials(restaurantId) {
-  const res = await fetch(`${SAAS_API}/api/menu/${restaurantId}/specials`);
+  const res = await fetch(`${currentBase}/api/menu/${restaurantId}/specials`);
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to fetch specials');
   return json;
 }
 
 export async function addMenuItem(data) {
-  const res = await fetch(`${SAAS_API}/api/menu/item`, { method: 'POST', headers: authHeader(), body: JSON.stringify(data) });
+  const res = await fetch(`${currentBase}/api/menu/item`, { method: 'POST', headers: authHeader(), body: JSON.stringify(data) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to add item');
   return json;
 }
 
 export async function updateMenuItem(id, data) {
-  const res = await fetch(`${SAAS_API}/api/menu/item/${id}`, { method: 'PATCH', headers: authHeader(), body: JSON.stringify(data) });
+  const res = await fetch(`${currentBase}/api/menu/item/${id}`, { method: 'PATCH', headers: authHeader(), body: JSON.stringify(data) });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to update item');
   return json;
 }
 
 export async function deleteMenuItem(id) {
-  const res = await fetch(`${SAAS_API}/api/menu/item/${id}`, { method: 'DELETE', headers: authHeader() });
+  const res = await fetch(`${currentBase}/api/menu/item/${id}`, { method: 'DELETE', headers: authHeader() });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to delete item');
   return json;
@@ -314,7 +314,7 @@ export async function uploadMenuItemImage(file) {
   const formData = new FormData();
   formData.append('image', file);
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/menu/upload-image`, {
+  const res = await fetch(`${currentBase}/api/menu/upload-image`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -327,7 +327,7 @@ export async function uploadMenuItemImage(file) {
 // ── Swap / Merge ──
 export async function swapTable(orderId, newTableId, newTableName, newSection) {
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/swap-table`, {
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/swap-table`, {
     method: 'POST',
     headers: token ? { ...h, Authorization: `Bearer ${token}` } : h,
     body: JSON.stringify({ newTableId, newTableName, newSection }),
@@ -338,7 +338,7 @@ export async function swapTable(orderId, newTableId, newTableName, newSection) {
 }
 
 export async function swapItems(orderId, targetOrderId, itemIds) {
-  const res = await fetch(`${SAAS_API}/api/orders/${orderId}/swap-items`, {
+  const res = await fetch(`${currentBase}/api/orders/${orderId}/swap-items`, {
     method: 'POST',
     headers: h,
     body: JSON.stringify({ targetOrderId, itemIds }),
@@ -349,7 +349,7 @@ export async function swapItems(orderId, targetOrderId, itemIds) {
 }
 
 export async function mergeOrders(sourceOrderId, targetOrderId) {
-  const res = await fetch(`${SAAS_API}/api/orders/merge`, {
+  const res = await fetch(`${currentBase}/api/orders/merge`, {
     method: 'POST',
     headers: h,
     body: JSON.stringify({ sourceOrderId, targetOrderId }),
@@ -361,7 +361,7 @@ export async function mergeOrders(sourceOrderId, targetOrderId) {
 
 // ── AI Menu ──
 export async function suggestMenuItems(items) {
-  const res = await fetch(`${SAAS_API}/api/ai-menu/suggest`, {
+  const res = await fetch(`${currentBase}/api/ai-menu/suggest`, {
     method: 'POST',
     headers: authHeader(),
     body: JSON.stringify({ items }),
@@ -375,7 +375,7 @@ export async function suggestFromCSV(file) {
   const formData = new FormData();
   formData.append('file', file);
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/ai-menu/suggest-from-csv`, {
+  const res = await fetch(`${currentBase}/api/ai-menu/suggest-from-csv`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -390,7 +390,7 @@ export async function analyzeMenuImage(imageFile) {
   const formData = new FormData();
   formData.append('image', imageFile);
   const token = localStorage.getItem('saas_token');
-  const res = await fetch(`${SAAS_API}/api/marketing/analyze-image`, {
+  const res = await fetch(`${currentBase}/api/marketing/analyze-image`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

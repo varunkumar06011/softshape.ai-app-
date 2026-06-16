@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { currentBase } from '../lib/serverUrl'
 import TopBar from '../components/TopBar'
 import BillModal from '../components/BillModal'
 import { getTenantSections, getActiveOrders, duplicateOrder, swapTable, swapItems, mergeOrders } from '../saas/saasApi'
@@ -97,7 +98,7 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
       if (navigator.onLine) {
         const [orders, menu] = await Promise.all([
           getActiveOrders(restaurantId, slug),
-          fetch(`${import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}/api/menu/${restaurantId}?type=${menuFilter}`).then(r => r.json()),
+          fetch(`${currentBase}/api/menu/${restaurantId}?type=${menuFilter}`).then(r => r.json()),
         ])
         const orderList = orders || []
         const allItems = Object.values(menu.categories || {}).flat()
@@ -132,7 +133,7 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
   const fetchMenu = async (section) => {
     if (!restaurantId || !slug) return
     try {
-      const url = `${import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'}/api/menu/${restaurantId}?type=${menuFilter}${section ? `&section=${encodeURIComponent(section)}` : ''}`
+      const url = `${currentBase}/api/menu/${restaurantId}?type=${menuFilter}${section ? `&section=${encodeURIComponent(section)}` : ''}`
       const menu = await fetch(url).then(r => r.json())
       const allItems = Object.values(menu.categories || {}).flat()
       setMenuItems(allItems)

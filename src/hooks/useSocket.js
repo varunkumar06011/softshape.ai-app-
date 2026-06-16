@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
-
-const BACKEND = import.meta.env.VITE_SAAS_API_URL || 'http://localhost:4000'
+import { currentBase } from '../lib/serverUrl'
 
 export const useSocket = (restaurantId, { onOrderUpdated, onKotSent, onOrderSettled, onOnlineOrder, onStockUpdate } = {}) => {
   const socketRef = useRef(null)
 
   useEffect(() => {
     if (!restaurantId) return
-    const socket = io(BACKEND, { transports: ['websocket'], reconnection: true })
+    const socket = io(currentBase, { transports: ['websocket'], reconnection: true })
     socketRef.current = socket
 
     socket.emit('join-restaurant', restaurantId)

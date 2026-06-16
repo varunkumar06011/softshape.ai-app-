@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
+import { currentBase } from '../lib/serverUrl'
 import TopBar from '../components/TopBar'
 import { getOnlineOrders } from '../saas/saasApi'
 import { Plus, X, Search, Clock, Bell } from 'lucide-react'
@@ -56,7 +57,7 @@ const CashierDelivery = () => {
   const markReady = async (orderId) => {
     try {
       const token = localStorage.getItem('saas_token')
-      await fetch(`http://localhost:4000/api/urbanpiper/orders/${orderId}/status`, {
+      await fetch(`${currentBase}/api/urbanpiper/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
         body: JSON.stringify({ status: 'READY' }),
