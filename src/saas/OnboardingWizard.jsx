@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PLANS, CASHIER_TYPES } from './plans';
-import { getOnboardingData, saveOnboardingStep, getOwner, updateBillTemplate, saveBillDetails, suggestFromPDF } from './saasApi';
-import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft, Loader2 } from 'lucide-react';
+import { getOnboardingData, saveOnboardingStep, saveOnboardingStep1, getOwner, updateBillTemplate, saveBillDetails, suggestFromPDF } from './saasApi';
+import { Check, Plus, Upload, Trash2, Download, Printer, ArrowLeft, Loader2, Globe, Facebook, Instagram, Linkedin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function getPresetsForType(restaurantType) {
@@ -18,7 +18,7 @@ function getPresetsForType(restaurantType) {
   }
 }
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 const LS_KEY = 'softshape_onboarding_progress';
 
@@ -59,7 +59,36 @@ export default function OnboardingWizard() {
     localStorage.setItem(LS_KEY, JSON.stringify(updated));
   };
 
-  const goNext = () => {
+  const goNext = async () => {
+    if (step === 1) {
+      // Persist Step1 to backend
+      const r = onboarding.restaurant || {};
+      try {
+        await saveOnboardingStep1({
+          restaurantName: r.name || getOwner()?.restaurantName || '',
+          address: r.address || '',
+          gstin: r.gst || '',
+          cuisineType: r.cuisine || '',
+          seatingCapacity: r.seating || '',
+          logoUrl: r.logo || '',
+          swiggyStoreId: r.swiggyStoreId || '',
+          zomatoOutletId: r.zomatoOutletId || '',
+          tagline: r.tagline || '',
+          primaryColor: r.primaryColor || '',
+          websiteUrl: r.websiteUrl || '',
+          fssaiLicense: r.fssaiLicense || '',
+          businessHoursOpen: r.businessHoursOpen || '',
+          businessHoursClose: r.businessHoursClose || '',
+          facebookPageUrl: r.facebookPageUrl || '',
+          instagramHandle: r.instagramHandle || '',
+          xHandle: r.xHandle || '',
+          linkedinUrl: r.linkedinUrl || '',
+        });
+      } catch (err) {
+        toast.error(err.message || 'Failed to save restaurant details');
+        return;
+      }
+    }
     if (step < TOTAL_STEPS) setStep(step + 1);
     else navigate('/onboarding/payment');
   };
@@ -71,7 +100,7 @@ export default function OnboardingWizard() {
   const inputClass =
     'w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none focus:border-[#E53935] focus:ring-2 focus:ring-red-100 transition-all placeholder:text-slate-400';
 
-  const stepLabels = ['Details', 'Floor plan', 'Menu', 'Plan', 'Staff', 'Printers', 'Disclaimer'];
+  const stepLabels = ['Details', 'Floor plan', 'Menu', 'Plan', 'Staff', 'Printers', 'Social', 'Disclaimer'];
 
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4">
@@ -133,7 +162,8 @@ export default function OnboardingWizard() {
         {step === 4 && <Step5 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onProceed={goNext} />}
         {step === 5 && <Step4 plan={onboarding.planSelected || 'pro'} onChangePlan={(v) => persist('planSelected', v)} onboarding={onboarding} persist={persist} />}
         {step === 6 && <StepPrinter onboarding={onboarding} persist={persist} />}
-        {step === 7 && <StepDisclaimer onAck={() => persist('disclaimerAck', true)} ack={onboarding.disclaimerAck} />}
+        {step === 7 && <StepSocial form={onboarding.restaurant || {}} onChange={(v) => persist('restaurant', v)} inputClass={inputClass} />}
+        {step === 8 && <StepDisclaimer onAck={() => persist('disclaimerAck', true)} ack={onboarding.disclaimerAck} />}
 
         {/* ── NAVIGATION ── */}
         <div className="flex justify-between mt-6 gap-3">
@@ -187,7 +217,7 @@ function StepDisclaimer({ onAck, ack }) {
 function Step1({ form, onChange, inputClass }) {
   const owner = getOwner()
   const restaurantType = owner?.restaurantType || 'Other'
-  const f = { name: '', address: '', gst: '', logo: '', cuisine: '', seating: '', swiggyStoreId: '', zomatoOutletId: '', ...form };
+  const f = { name: '', address: '', gst: '', logo: '', cuisine: '', seating: '', swiggyStoreId: '', zomatoOutletId: '', tagline: '', primaryColor: '#E53935', websiteUrl: '', fssaiLicense: '', businessHoursOpen: '', businessHoursClose: '', facebookPageUrl: '', instagramHandle: '', xHandle: '', linkedinUrl: '', ...form };
   const set = (k, v) => onChange({ ...f, [k]: v });
 
   return (
@@ -216,11 +246,74 @@ function Step1({ form, onChange, inputClass }) {
         </div>
         <p className="text-xs text-slate-400">Get these from your Swiggy/Zomato restaurant dashboard</p>
         <p className="text-xs text-slate-400">These IDs let us pull your Swiggy and Zomato orders directly into the Parcel Counter cashier dashboard and admin reports.</p>
+
+        <div className="border-t border-slate-100 pt-4 mt-2">
+          <h3 className="text-sm font-bold text-slate-700 mb-3">Branding & Compliance</h3>
+          <div className="space-y-3">
+            <input type="text" placeholder="Tagline (e.g. Taste of Tradition)" value={f.tagline} onChange={(e) => set('tagline', e.target.value)} className={inputClass} />
+            <input type="text" placeholder="Website URL (optional)" value={f.websiteUrl} onChange={(e) => set('websiteUrl', e.target.value)} className={inputClass} />
+            <input type="text" placeholder="FSSAI License Number (optional)" value={f.fssaiLicense} onChange={(e) => set('fssaiLicense', e.target.value)} className={inputClass} />
+            <div className="grid grid-cols-2 gap-3">
+              <input type="time" placeholder="Open time" value={f.businessHoursOpen} onChange={(e) => set('businessHoursOpen', e.target.value)} className={inputClass} />
+              <input type="time" placeholder="Close time" value={f.businessHoursClose} onChange={(e) => set('businessHoursClose', e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Brand Color</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={f.primaryColor} onChange={(e) => set('primaryColor', e.target.value)} className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer" />
+                <span className="text-sm text-slate-600 font-mono">{f.primaryColor}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="border border-dashed border-slate-200 rounded-xl p-6 text-center bg-slate-50">
           <input type="file" accept="image/*" className="hidden" id="logoUpload" onChange={(e) => set('logo', e.target.files[0]?.name || '')} />
           <label htmlFor="logoUpload" className="cursor-pointer text-sm font-bold text-slate-500">
             {f.logo ? `Selected: ${f.logo}` : 'Click to upload logo'}
           </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepSocial({ form, onChange, inputClass }) {
+  const f = { facebookPageUrl: '', instagramHandle: '', xHandle: '', linkedinUrl: '', ...form };
+  const set = (k, v) => onChange({ ...f, [k]: v });
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sm:p-8">
+      <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">Social media</h2>
+      <p className="text-sm text-slate-500 mb-5">Connect your accounts for one-click marketing posters and auto-posting.</p>
+      <div className="space-y-4">
+        <div>
+          <label className="text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1.5">
+            <Facebook className="w-3.5 h-3.5" /> Facebook Page URL
+          </label>
+          <input type="text" placeholder="https://facebook.com/yourpage" value={f.facebookPageUrl} onChange={(e) => set('facebookPageUrl', e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1.5">
+            <Instagram className="w-3.5 h-3.5" /> Instagram Handle
+          </label>
+          <input type="text" placeholder="@yourrestaurant" value={f.instagramHandle} onChange={(e) => set('instagramHandle', e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1.5">
+            <Globe className="w-3.5 h-3.5" /> X / Twitter Handle
+          </label>
+          <input type="text" placeholder="@yourrestaurant" value={f.xHandle} onChange={(e) => set('xHandle', e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-slate-500 mb-1.5 flex items-center gap-1.5">
+            <Linkedin className="w-3.5 h-3.5" /> LinkedIn Page URL
+          </label>
+          <input type="text" placeholder="https://linkedin.com/company/yourname" value={f.linkedinUrl} onChange={(e) => set('linkedinUrl', e.target.value)} className={inputClass} />
+        </div>
+
+        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-4">
+          <p className="text-xs text-amber-700 font-medium">Coming soon: OAuth connect for auto-posting directly from the Marketing AI page.</p>
         </div>
       </div>
     </div>

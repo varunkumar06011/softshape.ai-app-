@@ -56,6 +56,15 @@ export async function saveOnboardingStep(step, data) {
   return updated;
 }
 
+export async function saveOnboardingStep1(data) {
+  const res = await fetch(`${currentBase}/api/onboarding/step1`, {
+    method: 'POST', headers: authHeader(), body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to save restaurant details');
+  return json;
+}
+
 export function getOnboardingData() {
   try { return JSON.parse(localStorage.getItem('saas_onboarding') || '{}'); } catch { return {}; }
 }
