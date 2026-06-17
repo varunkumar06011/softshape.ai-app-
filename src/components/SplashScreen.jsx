@@ -12,8 +12,11 @@ const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
   duration: 5 + (i % 5),
 }))
 
+const SPLASH_KEY = 'softshape_splash_shown'
+
 export default function SplashScreen({ children }) {
-  const [phase, setPhase] = useState('intro') // 'intro' | 'splash' | 'transition' | 'done'
+  const alreadyShown = (() => { try { return sessionStorage.getItem(SPLASH_KEY) === '1' } catch { return false } })()
+  const [phase, setPhase] = useState(alreadyShown ? 'done' : 'intro') // 'intro' | 'splash' | 'transition' | 'done'
   const [typedText, setTypedText] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
@@ -22,9 +25,13 @@ export default function SplashScreen({ children }) {
   const fullText = 'softshape.ai'
 
   useEffect(() => {
+    if (alreadyShown) return
     const t0 = setTimeout(() => setPhase('splash'), 500)    // logo pops in
     const t1 = setTimeout(() => setPhase('transition'), 4500) // iris wipe + travel
-    const t2 = setTimeout(() => setPhase('done'), 7000)    // fully done
+    const t2 = setTimeout(() => {
+      setPhase('done')
+      try { sessionStorage.setItem(SPLASH_KEY, '1') } catch {}
+    }, 7000)    // fully done
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
