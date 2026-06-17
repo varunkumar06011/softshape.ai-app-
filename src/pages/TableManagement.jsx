@@ -44,6 +44,7 @@ const TableManagement = () => {
       toast.success('Section added')
       await fetchData()
     } catch (err) {
+      console.error('[TableManagement] Add section failed:', err);
       toast.error(err.message || 'Failed to add section')
     }
   }
