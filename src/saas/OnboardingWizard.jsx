@@ -426,7 +426,7 @@ Kingfisher Beer,Beer,120,LIQUOR,false,`;
                     toast.error('No items found in PDF');
                   }
                 } catch (err) {
-                  toast.error('Could not read menu. Please try CSV upload instead.');
+                  toast.error(err?.message || 'Could not read menu. Please try CSV upload instead.');
                 } finally {
                   setPdfLoading(false);
                 }
