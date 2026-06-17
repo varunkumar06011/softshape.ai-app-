@@ -129,27 +129,27 @@ export async function getTenantSections(restaurantId) {
   return json;
 }
 
-export async function createTenantSection(restaurantId, data) {
+export async function createTenantSection(restaurantId, slug, data) {
   const res = await fetch(`${currentBase}/api/tenant/sections/${restaurantId}`, {
-    method: 'POST', headers: authHeader(), body: JSON.stringify(data),
+    method: 'POST', headers: tenantAuthHeader(slug), body: JSON.stringify(data),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to create section');
   return json;
 }
 
-export async function updateTenantSection(sectionId, data) {
+export async function updateTenantSection(sectionId, slug, data) {
   const res = await fetch(`${currentBase}/api/tenant/sections/${sectionId}`, {
-    method: 'PATCH', headers: authHeader(), body: JSON.stringify(data),
+    method: 'PATCH', headers: tenantAuthHeader(slug), body: JSON.stringify(data),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to update section');
   return json;
 }
 
-export async function deleteTenantSection(sectionId) {
+export async function deleteTenantSection(sectionId, slug) {
   const res = await fetch(`${currentBase}/api/tenant/sections/${sectionId}`, {
-    method: 'DELETE', headers: authHeader(),
+    method: 'DELETE', headers: tenantAuthHeader(slug),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.error || 'Failed to delete section');

@@ -1,15 +1,35 @@
 import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import { getTenantSections, createTenantSection, updateTenantSection } from '../saas/saasApi'
 import { Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+function getTenantSlugFromStorage() {
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith('tenant_') && key.endsWith('_session')) {
+      const slug = key.replace('tenant_', '').replace('_session', '')
+      return slug
+    }
+  }
+  return null
+}
 
 const TableManagement = () => {
   const [sections, setSections] = useState([])
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const restaurantId = JSON.parse(localStorage.getItem('saas_owner') || '{}')?.restaurantId
+  const { slug: urlSlug } = useParams()
+  const tenantSlug = urlSlug || getTenantSlugFromStorage()
+  const session = (() => {
+    try {
+      const s = localStorage.getItem(`tenant_${tenantSlug}_session`) || localStorage.getItem('saas_owner')
+      return s ? JSON.parse(s) : null
+    } catch { return null }
+  })()
+  const restaurantId = session?.restaurantId || session?.slug || ''
 
   const fetchData = async () => {
     if (!restaurantId) return
@@ -38,9 +58,9 @@ const TableManagement = () => {
 
   const handleAddSection = async () => {
     const sectionName = prompt('Enter section name:')
-    if (!sectionName || !restaurantId) return
+    if (!sectionName || !restaurantId || !tenantSlug) return
     try {
-      await createTenantSection(restaurantId, { name: sectionName, tableCount: 0 })
+      await createTenantSection(restaurantId, tenantSlug, { name: sectionName, tableCount: 0 })
       toast.success('Section added')
       await fetchData()
     } catch (err) {
@@ -50,11 +70,11 @@ const TableManagement = () => {
   }
 
   const handleAddTable = async (sectionName) => {
-    if (!restaurantId) return
+    if (!restaurantId || !tenantSlug) return
     const section = sections.find(s => s.name === sectionName)
     if (!section) return
     try {
-      await updateTenantSection(section.id, { tableCount: section.tableCount + 1 })
+      await updateTenantSection(section.id, tenantSlug, { tableCount: section.tableCount + 1 })
       toast.success('Table added')
       await fetchData()
     } catch (err) {
