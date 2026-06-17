@@ -34,15 +34,14 @@ export default function OnboardingWizard() {
   });
 
   useEffect(() => {
-    getOnboardingData().then((data) => {
-      if (data && Object.keys(data).length > 0) {
-        setOnboarding((prev) => {
-          const merged = { ...data, ...prev };
-          localStorage.setItem(LS_KEY, JSON.stringify(merged));
-          return merged;
-        });
-      }
-    }).catch(() => {});
+    const data = getOnboardingData();
+    if (data && Object.keys(data).length > 0) {
+      setOnboarding((prev) => {
+        const merged = { ...data, ...prev };
+        localStorage.setItem(LS_KEY, JSON.stringify(merged));
+        return merged;
+      });
+    }
   }, []);
 
   useEffect(() => {
