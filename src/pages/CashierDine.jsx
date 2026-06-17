@@ -77,7 +77,7 @@ const CashierDine = ({ restaurantId, stationId, menuFilter = 'FOOD', allowedSect
       try {
         if (navigator.onLine) {
           const data = await getTenantSections(restaurantId)
-          const tables = data || []
+          const tables = data?.tables || []
           setTables(tables)
           await cacheTablesForRestaurant(restaurantId, tables)
         } else {

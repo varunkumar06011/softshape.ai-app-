@@ -1,51 +1,63 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
-import { getTenantSections } from '../saas/saasApi'
+import { getTenantSections, createTenantSection, updateTenantSection } from '../saas/saasApi'
 import { Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const TableManagement = () => {
-  const [tableData, setTableData] = useState([])
+  const [sections, setSections] = useState([])
+  const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(false)
 
   const restaurantId = JSON.parse(localStorage.getItem('saas_owner') || '{}')?.restaurantId
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!restaurantId) return
-    const fetchTables = async () => {
-      setLoading(true)
-      try {
-        const data = await getTenantSections(restaurantId)
-        setTableData(data || [])
-      } catch (err) {
-        console.error('Failed to load tables:', err)
-        toast.error('Failed to load floor plan')
-      } finally {
-        setLoading(false)
-      }
+    setLoading(true)
+    try {
+      const data = await getTenantSections(restaurantId)
+      setSections(data?.sections || [])
+      setTables(data?.tables || [])
+    } catch (err) {
+      console.error('Failed to load tables:', err)
+      toast.error('Failed to load floor plan')
+    } finally {
+      setLoading(false)
     }
-    fetchTables()
+  }
+
+  useEffect(() => {
+    fetchData()
   }, [restaurantId])
 
-  const groupedTables = tableData.reduce((acc, table) => {
-    if (!acc[table.section]) {
-      acc[table.section] = []
-    }
+  const groupedTables = tables.reduce((acc, table) => {
+    if (!acc[table.section]) acc[table.section] = []
     acc[table.section].push(table)
     return acc
   }, {})
 
-  const handleAddSection = () => {
+  const handleAddSection = async () => {
     const sectionName = prompt('Enter section name:')
-    if (sectionName) {
+    if (!sectionName || !restaurantId) return
+    try {
+      await createTenantSection(restaurantId, { name: sectionName, tableCount: 0 })
       toast.success('Section added')
+      await fetchData()
+    } catch (err) {
+      toast.error(err.message || 'Failed to add section')
     }
   }
 
-  const handleAddTable = (section) => {
-    const tableName = prompt(`Enter table name for ${section}:`)
-    if (tableName) {
+  const handleAddTable = async (sectionName) => {
+    if (!restaurantId) return
+    const section = sections.find(s => s.name === sectionName)
+    if (!section) return
+    try {
+      await updateTenantSection(section.id, { tableCount: section.tableCount + 1 })
       toast.success('Table added')
+      await fetchData()
+    } catch (err) {
+      toast.error(err.message || 'Failed to add table')
     }
   }
 
@@ -75,6 +87,8 @@ const TableManagement = () => {
           </button>
         </div>
 
+        {loading && <div className="animate-pulse space-y-3"><div className="h-8 bg-gray-200 rounded-xl w-1/3" /><div className="h-32 bg-gray-200 rounded-xl" /></div>}
+
         <div className="space-y-8">
           {Object.entries(groupedTables).map(([section, sectionTables]) => (
             <div key={section}>
@@ -100,6 +114,11 @@ const TableManagement = () => {
               </div>
             </div>
           ))}
+          {!loading && tables.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <p>No sections yet. Click "Add Section" to get started.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

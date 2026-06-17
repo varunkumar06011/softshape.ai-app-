@@ -58,7 +58,7 @@ const CaptainPanel = ({ restaurantId, stationId, menuFilter = 'FOOD', onLogout }
       try {
         if (navigator.onLine) {
           const data = await getTenantSections(restaurantId)
-          const tables = data || []
+          const tables = data?.tables || []
           setTables(tables)
           await cacheTablesForRestaurant(restaurantId, tables)
         } else {
