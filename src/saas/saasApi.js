@@ -472,6 +472,32 @@ export async function suggestFromCSV(file) {
   return json;
 }
 
+// ── Social Media ──
+export async function getSocialStatus() {
+  const res = await fetch(`${currentBase}/api/social/status`, { headers: authHeader() });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to load social status');
+  return json;
+}
+
+export async function connectSocialPlatform(platform, data) {
+  const res = await fetch(`${currentBase}/api/social/connect/${platform}`, {
+    method: 'PATCH', headers: authHeader(), body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Failed to connect');
+  return json;
+}
+
+export async function postToSocial(imageBase64, caption, platforms) {
+  const res = await fetch(`${currentBase}/api/social/post`, {
+    method: 'POST', headers: authHeader(), body: JSON.stringify({ imageBase64, caption, platforms }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || 'Post failed');
+  return json;
+}
+
 // ── Marketing AI ──
 export async function analyzeMenuImage(imageFile) {
   const formData = new FormData();

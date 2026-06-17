@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
-import { analyzeMenuImage } from '../saas/saasApi'
-import { Upload, Download, Copy, Instagram, Facebook, MessageCircle, RefreshCw } from 'lucide-react'
+import { analyzeMenuImage, getSocialStatus, postToSocial } from '../saas/saasApi'
+import { Upload, Download, Copy, Instagram, Facebook, MessageCircle, RefreshCw, Send, Twitter, Linkedin } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const LAYOUTS = [
@@ -28,6 +28,12 @@ export default function MarketingAI() {
   const [activeTagline, setActiveTagline] = useState(0)
   const [customColor, setCustomColor] = useState('')
   const [captionTab, setCaptionTab] = useState('instagram')
+  const [socialStatus, setSocialStatus] = useState(null)
+  const [postingMap, setPostingMap] = useState({})
+
+  useEffect(() => {
+    getSocialStatus().then(setSocialStatus).catch(() => {})
+  }, [])
 
   const handleImageSelect = (file) => {
     if (!file) return
@@ -154,6 +160,11 @@ export default function MarketingAI() {
                   dishName={aiResult.dishName}
                   tagline={(aiResult.taglines || [])[activeTagline] || ''}
                   price={price}
+                  caption={aiResult?.captions?.[captionTab] || ''}
+                  socialStatus={socialStatus}
+                  posting={postingMap[idx]}
+                  onPostStart={() => setPostingMap(prev => ({ ...prev, [idx]: true }))}
+                  onPostEnd={() => setPostingMap(prev => ({ ...prev, [idx]: false }))}
                 />
               ))}
             </div>
@@ -194,9 +205,10 @@ export default function MarketingAI() {
   )
 }
 
-function PosterCard({ layout, idx, aiResult, theme, customColor, restaurantName, dishName, tagline, price }) {
+function PosterCard({ layout, idx, aiResult, theme, customColor, restaurantName, dishName, tagline, price, caption, socialStatus, posting, onPostStart, onPostEnd }) {
   const canvasRef = useRef(null)
   const [downloading, setDownloading] = useState(false)
+  const [selectedPlatforms, setSelectedPlatforms] = useState([])
 
   const bg = customColor || theme?.bg || '#E53935'
   const cardBg = theme?.cardBg || bg
@@ -428,6 +440,39 @@ function PosterCard({ layout, idx, aiResult, theme, customColor, restaurantName,
     })
   }
 
+  const togglePlatform = (p) => {
+    setSelectedPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
+
+  const handlePost = async () => {
+    if (selectedPlatforms.length === 0) { toast.error('Select at least one platform'); return }
+    const canvas = canvasRef.current
+    if (!canvas) return
+    onPostStart()
+    try {
+      const imageBase64 = canvas.toDataURL('image/png')
+      const res = await postToSocial(imageBase64, caption, selectedPlatforms)
+      const results = res.results || {}
+      let successCount = 0
+      Object.entries(results).forEach(([platform, result]) => {
+        if (result?.success) { successCount++; toast.success(`Posted to ${platform}`) }
+        else { toast.error(`${platform}: ${result?.error || 'Failed'}`) }
+      })
+      if (successCount === 0) toast.error('No posts succeeded')
+    } catch (err) {
+      toast.error(err.message || 'Post failed')
+    } finally {
+      onPostEnd()
+    }
+  }
+
+  const platforms = [
+    { id: 'facebook', label: 'Facebook', icon: Facebook, connected: socialStatus?.facebook?.connected },
+    { id: 'instagram', label: 'Instagram', icon: Instagram, connected: socialStatus?.instagram?.connected },
+    { id: 'x', label: 'X', icon: Twitter, connected: socialStatus?.x?.connected },
+    { id: 'linkedin', label: 'LinkedIn', icon: Linkedin, connected: socialStatus?.linkedin?.connected },
+  ].filter(p => p.connected)
+
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
       <canvas ref={canvasRef} className="w-full rounded-xl mb-3" style={{ aspectRatio: layout.aspect }} />
@@ -436,9 +481,31 @@ function PosterCard({ layout, idx, aiResult, theme, customColor, restaurantName,
         <span className="text-[10px] px-2 py-0.5 bg-gray-100 rounded-full text-gray-500">{layout.aspect >= 1 ? '1:1' : '9:16'}</span>
       </div>
       <button onClick={handleDownload} disabled={downloading}
-        className="w-full py-2 bg-gray-800 text-white rounded-xl text-sm font-medium hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
+        className="w-full py-2 bg-gray-800 text-white rounded-xl text-sm font-medium hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 mb-3">
         <Download className="w-4 h-4" /> {downloading ? 'Saving...' : 'Download PNG'}
       </button>
+
+      {platforms.length > 0 && (
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Post to</p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {platforms.map(p => (
+              <label key={p.id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors border ${selectedPlatforms.includes(p.id) ? 'bg-brand text-white border-brand' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}>
+                <input type="checkbox" className="sr-only" checked={selectedPlatforms.includes(p.id)} onChange={() => togglePlatform(p.id)} />
+                <p.icon className="w-3.5 h-3.5" /> {p.label}
+              </label>
+            ))}
+          </div>
+          <button onClick={handlePost} disabled={posting}
+            className="w-full py-2 bg-brand text-white rounded-xl text-sm font-medium hover:bg-brand-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+            {posting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {posting ? 'Posting...' : 'Post Now'}
+          </button>
+        </div>
+      )}
+      {platforms.length === 0 && socialStatus && (
+        <p className="text-[10px] text-gray-400 text-center">No social accounts connected. Add them in onboarding.</p>
+      )}
     </div>
   )
 }
