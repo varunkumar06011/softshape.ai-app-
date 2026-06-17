@@ -14,9 +14,16 @@ const PARTICLES = Array.from({ length: 20 }, (_, i) => ({
 
 const SPLASH_KEY = 'softshape_splash_shown'
 
+function hasSplashBeenShown() {
+  try { return localStorage.getItem(SPLASH_KEY) === '1' } catch { return false }
+}
+
+function markSplashShown() {
+  try { localStorage.setItem(SPLASH_KEY, '1') } catch {}
+}
+
 export default function SplashScreen({ children }) {
-  const alreadyShown = (() => { try { return sessionStorage.getItem(SPLASH_KEY) === '1' } catch { return false } })()
-  const [phase, setPhase] = useState(alreadyShown ? 'done' : 'intro') // 'intro' | 'splash' | 'transition' | 'done'
+  const [phase, setPhase] = useState(() => hasSplashBeenShown() ? 'done' : 'intro')
   const [typedText, setTypedText] = useState('')
   const navigate = useNavigate()
   const location = useLocation()
@@ -25,13 +32,12 @@ export default function SplashScreen({ children }) {
   const fullText = 'softshape.ai'
 
   useEffect(() => {
-    if (alreadyShown) return
+    if (hasSplashBeenShown()) return
+    // Mark shown immediately so refresh never replays, even mid-animation
+    markSplashShown()
     const t0 = setTimeout(() => setPhase('splash'), 500)    // logo pops in
     const t1 = setTimeout(() => setPhase('transition'), 4500) // iris wipe + travel
-    const t2 = setTimeout(() => {
-      setPhase('done')
-      try { sessionStorage.setItem(SPLASH_KEY, '1') } catch {}
-    }, 7000)    // fully done
+    const t2 = setTimeout(() => setPhase('done'), 7000)    // fully done
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
