@@ -20,21 +20,44 @@ function getPresetsForType(restaurantType) {
 
 const TOTAL_STEPS = 7;
 
+const LS_KEY = 'softshape_onboarding_progress';
+
 export default function OnboardingWizard() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [onboarding, setOnboarding] = useState({});
   const owner = getOwner();
 
+  const [step, setStep] = useState(() => {
+    try { return parseInt(localStorage.getItem(`${LS_KEY}_step`)) || 1; } catch { return 1; }
+  });
+  const [onboarding, setOnboarding] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }
+  });
+
   useEffect(() => {
-    const data = getOnboardingData();
-    setOnboarding(data);
+    getOnboardingData().then((data) => {
+      if (data && Object.keys(data).length > 0) {
+        setOnboarding((prev) => {
+          const merged = { ...data, ...prev };
+          localStorage.setItem(LS_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(`${LS_KEY}_step`, String(step));
+  }, [step]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify(onboarding));
+  }, [onboarding]);
 
   const persist = (key, value) => {
     const updated = { ...onboarding, [key]: value };
     setOnboarding(updated);
-    saveOnboardingStep(key, value);
+    saveOnboardingStep(key, value).catch(() => {});
+    localStorage.setItem(LS_KEY, JSON.stringify(updated));
   };
 
   const goNext = () => {
